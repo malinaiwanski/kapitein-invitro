@@ -1,42 +1,56 @@
 
 %% UU - Kapitein Lab
 % Analyze in vitro single molecule motility assays
-% MKI and CC 2019-11-05
+% MK Iwanski and C Chen 2019-11-05
+% Projection along MT taken from AG Hendricks Lab (McGill)
 
 %%
 % TO DO:
-% filter out trajectories not along a MT
+% in filter_mts, filter out MTs that run out of edge of FOV
+% sliding MSD: window size and 2D
+% landing rate per MT with time (also for whole MT for whole movie div by L MT and L mov)
 
 %% This code reads in output from the DoM Utrecht plug-in for detection and tracking of particles for a single movie.
 % It reads in all the data and re-organizes it into a format used by cumulative_track_analysis_2.
 % It can be used to visualize information about the trajectories and trial parameters.
-% No filtering is done in this code (e.g. for minimum run length).
+% Filtering done in this code can be controlled using Options and Parameters
 
 % To use this file you will need the following files:
-% Results from DoM Utrecht particle localization and tracking (csv)
-% MT x,y positions
+% Results from DoM Utrecht particle localization and tracking (csv; file name must start with DoM)
+% MT x,y positions (csv; file name must start with MT)
 %
 
 clear all, close all
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-
-filt_cross_mt = 1;
+% Filtering
+filt_cross_mt = 0; %ignore any tracks on MTs that are too close to another MT
 
 set(0,'DefaultFigureWindowStyle','docked')
 %addpath(' ')
 
 %% Parameters
+% From imaging:
 pixel_size = 64.0; %pixel size of camera [nm]
 exp_time = 0.1; %exposure time [s]
 num_frames = 600; %number of frames in movie [frames]
 num_pix_x = 512;
 num_pix_y = 512;
 
-min_duration = 3; %minimum length of track to be analyzed [frames]
+% For analysis:
+min_duration = 5; %minimum length of track to be analyzed [frames]
 end_dist = 200; %maximum distance to first/last point of a MT for a spot localization to be considered to be at MT end [nm]
+mt_dist = 400; %maximum distance to some MT for track to considered on a MT and thus analyzed [nm]
+analyze_mt_num = -1; %specify which MT to analyze, based on MT id in text file (these start at 0); if this is -1, all MTs will be analyzed
 mt_cross_dist = 200; %distance between points on two MTs for them to be considered too close/crossing --> filtered out [nm]
+l_window = 7; %number of frames to average for sliding MSD analysis
+msd_thresh = 1.1; %alpha-value above which is processive, below which is paused
+msd_step = 0.3; %minimum threshold for findchangepts function; minimum improvement in residual error; changepoints currently based on mean values, but can use rms, std, mean and slope
+l_min = 3; %minimum distance between two changepoints - smallest duration of pause/run
+
+% For plotting:
+rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a';
@@ -45,14 +59,20 @@ date = '2019-10-30';
 filenum = 1;
 
 %% Load data
-dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\');
+dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+% dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 % Read in microtubule data
-% mt_file = dir(fullfile(dirname,'MT*.txt')); %finds appropriate file
-% fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
-% temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
-% fclose(fid);
-% mts = filter_mts(temp_mt_data, filt_cross_mt, mt_cross_dist, pixel_size, zplot);
+mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
+fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
+temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
+fclose(fid); 
+[mts, interp_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, zplot);
+all_interp_mts = [];
+for j = 1: size(interp_mts,1)
+    all_interp_mts = [all_interp_mts;interp_mts{j}];
+end
+num_mts = size(mts,1);
 
 % Read in particle data
 motor_file = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
@@ -77,21 +97,19 @@ cmap=colormap(lines(ntracks));
 
 %% Initialize figures
 if zplot ~= 0
-%     figure, mt_plot=gcf;
-%     xlabel('x (nm)'), ylabel('y (nm)'), title('Microtubules')
-%     xlim([0 num_pix_x*pixel_size]), ylim([0 num_pix_y*pixel_size])
-    
     figure, traj_plot=gcf;
     xlabel('x (nm)'), ylabel('y (nm)'), title('Trajectories')
-%     xlim([0 num_pix_x*pixel_size]), ylim([0 num_pix_y*pixel_size])
     
     figure, kymo_plot=gcf;
     xlabel('time (s)'), ylabel('position (nm)'), title('Kymographs')
-%     xlim([0 num_frames*exp_time]), ylim([0 inf])
 end
 %% Initialize variables
+censored = []; %track reaches end of MT
+cum_run_length = [];
+ftk = 0; %number of tracks that passes all filtering
 
 %% Analyze
+profile on
 for tk = 1:ntracks
     skip_tk = 0; % 1 if track fails to meet 1 or more of the filtering conditions (incl. min duratiom, present in first/last frame)
     cens_tk = 0; %1 if spots in track too close to MT end (i.e. run length is limited by MT length -> censored)
@@ -116,26 +134,54 @@ for tk = 1:ntracks
         continue
     end
     
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % FILTER: do not analyze track if not near a MT - choose MT along which the given track is, skip track if not near a MT
-    % assign which index within mts as mt_tk so that mts{mt_tk} gives right mt
-    % assign x,y positions and mt_coords
+    mx_tk = mean(x_tk);
+    my_tk = mean(y_tk);
+    near_mts = zeros(num_mts,1);   
+        for j = 1:num_mts
+            for jj = 1:size(interp_mts{j},1)
+                if ((abs(interp_mts{j}(jj,1)-mx_tk) < mt_dist) && (abs(interp_mts{j}(jj,2)-my_tk) < mt_dist)) %centroid of motor trajectory within mt_dist nm of a position along MT
+                    near_mts(j) = 1; %1 if MT is nearby
+                end
+            end
+        end
+        mt_id = find(near_mts); %indices of nearby MTs
+%         mt_tk = [];
+        if length(mt_id) == 1
+            mt_tk = mt_id;
+            mt_coords = mts{mt_tk};
+        elseif length(mt_id) > 1 %if more than one potential MT nearby
+            mt_error = zeros(nnz(near_mts),1); %vector to store errors
+            for j = 1:nnz(near_mts)
+                [~,uni_ind] = unique(interp_mts{mt_id(j)}(:,1),'stable'); %find repeated x-values in MT
+                uni_ind = sort(uni_ind);
+                fit_mt = polyfit(interp_mts{mt_id(j)}(uni_ind,1),interp_mts{mt_id(j)}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+                interp_mt = polyval(fit_mt,x_tk);
+                mt_error(j,1) = sum(abs(y_tk - interp_mt));
+            end
+            mt_tk = mt_id(mt_error==min(mt_error)); %choose MT that motor trajectory is closest to
+            mt_tk = mt_tk(1); %if more than one MT equally close, choose first MT
+            mt_coords = mts{mt_tk};
+        else
+            skip_tk = 1; %track not near a MT
+            continue
+        end
     
-    % for testing, fit "MT" to trajectory %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    pseudo_mt = polyfit(x_tk,y_tk,1);
-    mt_ycoords = polyval(pseudo_mt,x_tk);
-    mt_coords = [x_tk, mt_ycoords];
-    [~,uni_ind] = unique(mt_coords(:,1),'stable'); %find repeated x-values in MT
-    uni_ind = sort(uni_ind);
-    mt_coords = mt_coords(uni_ind,:);
+%     % for testing, fit "MT" to trajectory %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     pseudo_mt = polyfit(x_tk,y_tk,1);
+%     mt_ycoords = polyval(pseudo_mt,x_tk);
+%     mt_coords = [x_tk, mt_ycoords];
+%     [~,uni_ind] = unique(mt_coords(:,1),'stable'); %find repeated x-values in MT
+%     uni_ind = sort(uni_ind);
+%     mt_coords = mt_coords(uni_ind,:);
     
     % Find points of track considered to be at end of MT (no distinction made between plus and minus end)
     motorsq = [x_tk,y_tk];
     mtendsq = [mt_coords(1,:);mt_coords(end,:)];
     [points_mtend,dist_mtend] = rangesearch(motorsq,mtendsq,end_dist,'Distance','euclidean'); %points within specified nm of either end of MT (cell with entry for each end) %distance to MT end (cell with entry for each end)
     if size(points_mtend{1,1},2) ~= 0 || size(points_mtend{2,1},2) ~= 0 %there are points near at least one of the ends
-        ind_mtend = [sort(points_mtend{1,1}),sort(points_mtend{2,1})]; %index of motorsq near MT end
-        loc_mtend = [motorsq(ind_mtend,1),motorsq(ind_mtend,2)]; %x,y values of spots in motorsq near MT end
+        ind_mtend = [sort(points_mtend{1,1}), sort(points_mtend{2,1})]; %index of motorsq near MT end
+        loc_mtend = [motorsq(ind_mtend,1), motorsq(ind_mtend,2)]; %x,y values of spots in motorsq near MT end
         cens_tk = 1;
     else
         ind_mtend = [];
@@ -144,14 +190,20 @@ for tk = 1:ntracks
     end
     all_ind = 1:1:duration_tk; %all indices (of tk variables)
     ind_alongmt = setdiff(all_ind,ind_mtend,'stable'); %indices of track (within tk variables) along length of MT
-
+    
     % project track along MT
     fit_vector = [];
     motor_vector = [0,0;diff(x_tk),diff(y_tk)];
     mt_vector = [0,0;diff(mt_coords)];
     % polynomial fit to vector (gives MT coordinates for each spot localized in track)
-    fit_vector(:,1) = interp1(mt_coords(:,1),mt_vector(:,1),x_tk,'pchip'); 
-    fit_vector(:,2) = interp1(mt_coords(:,1),mt_vector(:,2),x_tk,'pchip');
+    [~,uni_ind] = unique(interp_mts{mt_tk}(:,1),'stable'); %find repeated x-values in MT
+    uni_ind = sort(uni_ind);
+    fit_mt = polyfit(interp_mts{mt_tk}(uni_ind,1),interp_mts{mt_tk}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+    interp_mt = polyval(fit_mt,x_tk);
+%     fit_vector(:,1) = interp1(mt_coords(:,1),mt_vector(:,1),x_tk,'pchip'); 
+%     fit_vector(:,2) = interp1(mt_coords(:,1),mt_vector(:,2),x_tk,'pchip');
+    fit_vector(:,1) = x_tk;
+    fit_vector(:,2) = interp_mt;
     fit_norm = repmat(sqrt(sum(fit_vector.^2,2)),1,2);
     fit_vector_norm = fit_vector./fit_norm; %normalize
     %project
@@ -163,12 +215,78 @@ for tk = 1:ntracks
     end
     position = cumsum(delp); %position of track along MT vector
     position_off = cumsum(delp_off); %position of track perpendicular to MT vector
-    
-    % Plot trajectory
-    if zplot ~= 0
-        figure(traj_plot), hold on, plot(x_tk,y_tk,'.-','Color',cmap(tk,:)) %plots trajectories
-        figure(kymo_plot), hold on, plot(frame_tk.*exp_time,position,'.-','Color',cmap(tk,:)) %plots "kymographs"
+    if position(end) < 0 %motor moves from high to low x values (i.e. MT drawn the "wrong" way)
+        position = position.*-1;
     end
+    
+    %%%%%%%%%%%%%% All filtering is done before this point %%%%%%%%%%%%%%%%
+    ftk = ftk+1; %only advances if track is not filtered
+    censored = [censored; cens_tk]; %cens_tk is 1 if track reaches MT end, 0 if not
+
+%     % Plot trajectory
+%     if zplot ~= 0 %&& skip_tk~=1 %&& mod(tk,10) == 0
+%         figure(traj_plot), hold on, plot(x_tk,y_tk,'.-','Color',cmap(tk,:)) %plots trajectories
+%         figure(kymo_plot), hold on, plot(frame_tk.*exp_time,position,'.-','Color',cmap(tk,:)) %plots "kymographs"
+%     end
+    
+    %% Sliding MSD analysis
+    if length (frame_tk) > l_window + 4
+        tmsd_res = tMSD_2D(x_tk,y_tk,frame_tk,l_window,exp_time,msd_thresh, msd_step,l_min);
+        tmsd_frames = tmsd_res(:,1); %frame of particle (in movie)
+        loc_alpha = tmsd_res(:,2); %local alpha-value
+        proc_frames = tmsd_res(:,3); %was frame marked as processive (1) or paused/diffusive (0)
+    else
+        loc_alpha
+    end
+    
+    %% Calculate parameters
+    inst_vel = diff(position)./diff(frame_tk.*exp_time);
+    proc_vel = diff(position(proc_frames))./diff(frame_tk(proc_frames).*exp_time);
+    
+    %% Store data
+    traj(ftk).position = position;
+    traj(ftk).x = x_tk;
+    traj(ftk).y = y_tk;
+    traj(ftk).frames = frame_tk;
+    traj(ftk).mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
+    traj(ftk).run_length = position(end);
+    traj(ftk).proc_frames = proc_frames;
+    traj(ftk).loc_alpha = loc_alpha;
+    traj(ftk).inst_vel = inst_vel;
+    traj(ftk).proc_vel = proc_vel;
+    cum_run_length = [cum_run_length; position(end)];
+    cum_censored = censored;
+    
+end
+profile viewer
+
+%% Plot
+if zplot ~= 0
+    for ftk = 1:size(cum_run_length,1)
+        figure(traj_plot), hold on, plot(traj(ftk).x,traj(ftk).y,'.-','Color',cmap(ftk,:)) %plots trajectories
+        figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
+    end
+end
+
+
+%% Plot parameters to check data
+if zplot ~=0
+    figure,totrl=gcf; %initialize figure
+    [trl_n, trl_edges]=histcounts(cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'Count');
+    nhist_trl=trl_n;
+    xhist_trl=trl_edges+(rl_binwidth/2);
+    xhist_trl(end)=[]; 
+    figure(totrl), hold on 
+    bar(xhist_trl,nhist_trl)
+    xlabel('Total run length (nm)'), ylabel('Count'), title([motor,' ', mt_type,' Total run length histogram'])
+    opt = statset('mlecustom');
+    opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+    p0 = [1000];
+    loL = [300];
+    upL = [3000];
+    [estimRL pciRL] = mle(cum_run_length,'Distribution','exponential','Censoring',censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+
+
     
 end
 

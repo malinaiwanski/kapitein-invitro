@@ -1,14 +1,12 @@
 
 %% UU - Kapitein Lab
 % Analyze in vitro single molecule motility assays
-% MK Iwanski and C Chen 2019-11-05
+% MKI and CC 2019-11-05
 % Projection along MT taken from AG Hendricks Lab (McGill)
 
 %%
 % TO DO:
 % in filter_mts, filter out MTs that run out of edge of FOV
-% sliding MSD: window size and 2D
-% landing rate per MT with time (also for whole MT for whole movie div by L MT and L mov)
 
 %% This code reads in output from the DoM Utrecht plug-in for detection and tracking of particles for a single movie.
 % It reads in all the data and re-organizes it into a format used by cumulative_track_analysis_2.
@@ -16,8 +14,8 @@
 % Filtering done in this code can be controlled using Options and Parameters
 
 % To use this file you will need the following files:
-% Results from DoM Utrecht particle localization and tracking (csv; file name must start with DoM)
-% MT x,y positions (csv; file name must start with MT)
+% Results from DoM Utrecht particle localization and tracking (csv)
+% MT x,y positions
 %
 
 clear all, close all
@@ -37,20 +35,12 @@ exp_time = 0.1; %exposure time [s]
 num_frames = 600; %number of frames in movie [frames]
 num_pix_x = 512;
 num_pix_y = 512;
-
 % For analysis:
-min_duration = 5; %minimum length of track to be analyzed [frames]
+min_duration = 3; %minimum length of track to be analyzed [frames]
 end_dist = 200; %maximum distance to first/last point of a MT for a spot localization to be considered to be at MT end [nm]
 mt_dist = 400; %maximum distance to some MT for track to considered on a MT and thus analyzed [nm]
 analyze_mt_num = -1; %specify which MT to analyze, based on MT id in text file (these start at 0); if this is -1, all MTs will be analyzed
 mt_cross_dist = 200; %distance between points on two MTs for them to be considered too close/crossing --> filtered out [nm]
-l_window = 7; %number of frames to average for sliding MSD analysis
-msd_thresh = 1.1; %alpha-value above which is processive, below which is paused
-msd_step = 0.3; %minimum threshold for findchangepts function; minimum improvement in residual error; changepoints currently based on mean values, but can use rms, std, mean and slope
-l_min = 3; %minimum distance between two changepoints - smallest duration of pause/run
-
-% For plotting:
-rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a';
@@ -59,8 +49,8 @@ date = '2019-10-30';
 filenum = 1;
 
 %% Load data
-dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-% dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
+% dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 % Read in microtubule data
 mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
@@ -104,12 +94,8 @@ if zplot ~= 0
     xlabel('time (s)'), ylabel('position (nm)'), title('Kymographs')
 end
 %% Initialize variables
-censored = []; %track reaches end of MT
-cum_run_length = [];
-ftk = 0; %number of tracks that passes all filtering
 
 %% Analyze
-profile on
 for tk = 1:ntracks
     skip_tk = 0; % 1 if track fails to meet 1 or more of the filtering conditions (incl. min duratiom, present in first/last frame)
     cens_tk = 0; %1 if spots in track too close to MT end (i.e. run length is limited by MT length -> censored)
@@ -167,6 +153,7 @@ for tk = 1:ntracks
             continue
         end
     
+    
 %     % for testing, fit "MT" to trajectory %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     pseudo_mt = polyfit(x_tk,y_tk,1);
 %     mt_ycoords = polyval(pseudo_mt,x_tk);
@@ -190,7 +177,7 @@ for tk = 1:ntracks
     end
     all_ind = 1:1:duration_tk; %all indices (of tk variables)
     ind_alongmt = setdiff(all_ind,ind_mtend,'stable'); %indices of track (within tk variables) along length of MT
-    
+
     % project track along MT
     fit_vector = [];
     motor_vector = [0,0;diff(x_tk),diff(y_tk)];
@@ -215,80 +202,12 @@ for tk = 1:ntracks
     end
     position = cumsum(delp); %position of track along MT vector
     position_off = cumsum(delp_off); %position of track perpendicular to MT vector
-    if position(end) < 0 %motor moves from high to low x values (i.e. MT drawn the "wrong" way)
-        position = position.*-1;
-    end
-
-%     % Plot trajectory
-%     if zplot ~= 0 %&& skip_tk~=1 %&& mod(tk,10) == 0
-%         figure(traj_plot), hold on, plot(x_tk,y_tk,'.-','Color',cmap(tk,:)) %plots trajectories
-%         figure(kymo_plot), hold on, plot(frame_tk.*exp_time,position,'.-','Color',cmap(tk,:)) %plots "kymographs"
-%     end
     
-    %% Sliding MSD analysis
-    if length (frame_tk) > l_window + 4
-        tmsd_res = tMSD_2D(x_tk,y_tk,frame_tk,l_window,exp_time,msd_thresh, msd_step,l_min);
-        tmsd_frames = tmsd_res(:,1); %frame of particle (in movie)
-        loc_alpha = tmsd_res(:,2); %local alpha-value
-        proc_frames = tmsd_res(:,3); %was frame marked as processive (1) or paused/diffusive (0)
+    % Plot trajectory
+    if zplot ~= 0 && skip_tk~=1
+        figure(traj_plot), hold on, plot(x_tk,y_tk,'.-','Color',cmap(tk,:)) %plots trajectories
+        figure(kymo_plot), hold on, plot(frame_tk.*exp_time,abs(position),'.-','Color',cmap(tk,:)) %plots "kymographs"
     end
-    
-    %%%%%%%%%%%%%% All filtering is done before this point %%%%%%%%%%%%%%%%
-    ftk = ftk+1; %only advances if track is not filtered
-    censored = [censored; cens_tk]; %cens_tk is 1 if track reaches MT end, 0 if not
-    
-    %% Calculate parameters
-    inst_vel = diff(position)./diff(frame_tk.*exp_time);
-    if length (frame_tk) > l_window + 4
-        proc_vel = diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
-    end
-    
-    %% Store data
-    traj(ftk).position = position;
-    traj(ftk).x = x_tk;
-    traj(ftk).y = y_tk;
-    traj(ftk).frames = frame_tk;
-    traj(ftk).mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
-    traj(ftk).run_length = position(end);
-    if length (frame_tk) > l_window + 4
-        traj(ftk).proc_frames = proc_frames;
-        traj(ftk).loc_alpha = loc_alpha;
-        traj(ftk).proc_vel = proc_vel;
-    end
-    traj(ftk).inst_vel = inst_vel;
-    cum_run_length = [cum_run_length; position(end)];
-    cum_censored = censored;
-    
-end
-profile viewer
-
-%% Plot
-if zplot ~= 0
-    for ftk = 1:size(cum_run_length,1)
-        figure(traj_plot), hold on, plot(traj(ftk).x,traj(ftk).y,'.-','Color',cmap(ftk,:)) %plots trajectories
-        figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
-    end
-end
-
-
-%% Plot parameters to check data
-if zplot ~=0
-    figure,totrl=gcf; %initialize figure
-    [trl_n, trl_edges]=histcounts(cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'Count');
-    nhist_trl=trl_n;
-    xhist_trl=trl_edges+(rl_binwidth/2);
-    xhist_trl(end)=[]; 
-    figure(totrl), hold on 
-    bar(xhist_trl,nhist_trl)
-    xlabel('Total run length (nm)'), ylabel('Count'), title([motor,' ', mt_type,' Total run length histogram'])
-    opt = statset('mlecustom');
-    opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
-    p0 = [1000];
-    loL = [300];
-    upL = [3000];
-    [estimRL pciRL] = mle(cum_run_length,'Distribution','exponential','Censoring',censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
-
-
     
 end
 

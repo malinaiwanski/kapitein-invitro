@@ -43,22 +43,26 @@ for i = 1:num_mts
     mt_l = length(find(mts_id(:,1)==i)); %number of points making up MT, NOT physical length
     temp_mts{i} = [mts_x([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size, mts_y([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size]; %MT position x,y in nm
     %add one pixel dimension because ImageJ starts at 0, MATLAB at 1; add 0.5 because positions are plotted at the bottom,left of a pixel (??)
-    temp_mts{i} = sortrows(temp_mts{i}); %put x-values in ascending order for later interpolation
-    
+
     %FILTER: skip MTs with single unique x-value (vertical MTs)
     [~,uni_ind] = unique(temp_mts{i}(:,1),'stable'); %find repeated x-values in MT
     uni_ind = sort(uni_ind);
     if length(uni_ind) == 1 
         %uni_ind
+        i
         skip_mts(i) = 1;
     end
     
     %interpolate MT coordinates
     x_interp = temp_mts{i}(1,1):0.01:temp_mts{i}(end,1);
+    
     interp_mts{i} = [];
     interp_mts{i}(:,1)=interp1(temp_mts{i}(uni_ind,1),temp_mts{i}(uni_ind,1),x_interp,'linear','extrap'); %interpolated x coordinates of MT
     interp_mts{i}(:,2)=interp1(temp_mts{i}(uni_ind,1),temp_mts{i}(uni_ind,2),x_interp,'linear','extrap'); %interpolated y coordinates of MT
     interp_mtcoords = [interp_mtcoords;interp_mts{i}]; %accumulates all MT coordinates
+    if isempty(interp_mts{i})
+        i
+    end
 
 end
 

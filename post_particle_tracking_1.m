@@ -325,5 +325,5 @@ if zsave ~= 0
     % save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
-    save([save_dirname,save_filename],'traj','cum_run_length','cum_censored')
+    save([save_dirname,save_filename],'mts','interp_mts','traj','cum_run_length','cum_censored')
 end

@@ -140,23 +140,25 @@ for tk = 1:ntracks
     % FILTER: do not analyze track if not near a MT - choose MT along which the given track is, skip track if not near a MT
     mx_tk = mean(x_tk);
     my_tk = mean(y_tk);
-    near_mts = zeros(num_mts,1);   
+    pot_near_mts = zeros(num_mts,1);   
     for j = 1:num_mts
-        for jj = 1:size(interp_mts{j},1)
-            if ((abs(interp_mts{j}(jj,1)-mx_tk) < mt_dist) && (abs(interp_mts{j}(jj,2)-my_tk) < mt_dist)) %centroid of motor trajectory within mt_dist nm of a position along MT
+        for jj = 1:size(mts{j},1)
+            if ((abs(mts{j}(jj,1)-mx_tk) < 5000) && (abs(mts{j}(jj,2)-my_tk) < 5000)) %initial screen to find close by MTs
+                pot_near_mts(j) = 1; %1 if MT is nearby
+            end
+        end
+    end
+    pot_mt_id = find(pot_near_mts); %indices of potential nearby MTs
+    near_mts = zeros(length(pot_mt_id),1); 
+    for j = 1:length(pot_mt_id)
+        for jj = 1:size(interp_mts{pot_mt_id(j)},1)
+            if ((abs(interp_mts{pot_mt_id(j)}(jj,1)-mx_tk) < mt_dist) && (abs(interp_mts{pot_mt_id(j)}(jj,2)-my_tk) < mt_dist)) %centroid of motor trajectory within mt_dist nm of a position along MT
                 near_mts(j) = 1; %1 if MT is nearby
             end
         end
     end
-    mt_id = find(near_mts); %indices of nearby MTs
-    for j = 1:num_mts
-        for jj = 1:size(interp_mts{j},1)
-            if ((abs(interp_mts{j}(jj,1)-mx_tk) < mt_dist) && (abs(interp_mts{j}(jj,2)-my_tk) < mt_dist)) %centroid of motor trajectory within mt_dist nm of a position along MT
-                near_mts(j) = 1; %1 if MT is nearby
-            end
-        end
-    end
-    mt_id = find(near_mts); %indices of nearby MTs
+    if nnz(near_mts)>0
+        mt_id = pot_mt_id(logical(near_mts)); %indices of nearby MTs
 %         mt_tk = [];
         if length(mt_id) == 1
             mt_tk = mt_id;
@@ -177,6 +179,10 @@ for tk = 1:ntracks
             skip_tk = 1; %track not near a MT
             continue
         end
+    else
+        skip_tk = 1; %track not near a MT
+        continue
+    end
     
 %     % for testing, fit "MT" to trajectory %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     pseudo_mt = polyfit(x_tk,y_tk,1);
@@ -319,5 +325,5 @@ if zsave ~= 0
     % save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
-    save([save_dirname,save_filename],'traj','cum_run_length','cum_censored')
+    save([save_dirname,save_filename],'mts','interp_mts','traj','cum_run_length','cum_censored')
 end

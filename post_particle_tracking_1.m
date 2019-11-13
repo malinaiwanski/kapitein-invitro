@@ -25,7 +25,7 @@ clear all, close all
 zplot = 1;
 zsave = 0;
 % Filtering
-filt_cross_mt = 0; %ignore any tracks on MTs that are too close to another MT
+filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT
 
 set(0,'DefaultFigureWindowStyle','docked')
 %addpath(' ')
@@ -67,7 +67,7 @@ mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
 fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
 temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
 fclose(fid); 
-[mts, interp_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, zplot);
+[mts, interp_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, num_pix_x, num_pix_y, zplot);
 all_interp_mts = [];
 for j = 1: size(interp_mts,1)
     all_interp_mts = [all_interp_mts;interp_mts{j}];
@@ -102,6 +102,9 @@ if zplot ~= 0
     
     figure, kymo_plot=gcf;
     xlabel('time (s)'), ylabel('position (nm)'), title('Kymographs')
+    
+    figure, offaxis_plot=gcf;
+    xlabel('time (s)'), ylabel('off-axis position (nm)'), title('Off-axis position')
 end
 %% Initialize variables
 censored = []; %track reaches end of MT
@@ -137,15 +140,25 @@ for tk = 1:ntracks
     % FILTER: do not analyze track if not near a MT - choose MT along which the given track is, skip track if not near a MT
     mx_tk = mean(x_tk);
     my_tk = mean(y_tk);
-    near_mts = zeros(num_mts,1);   
-        for j = 1:num_mts
-            for jj = 1:size(interp_mts{j},1)
-                if ((abs(interp_mts{j}(jj,1)-mx_tk) < mt_dist) && (abs(interp_mts{j}(jj,2)-my_tk) < mt_dist)) %centroid of motor trajectory within mt_dist nm of a position along MT
-                    near_mts(j) = 1; %1 if MT is nearby
-                end
+    pot_near_mts = zeros(num_mts,1);   
+    for j = 1:num_mts
+        for jj = 1:size(mts{j},1)
+            if ((abs(mts{j}(jj,1)-mx_tk) < 5000) && (abs(mts{j}(jj,2)-my_tk) < 5000)) %initial screen to find close by MTs
+                pot_near_mts(j) = 1; %1 if MT is nearby
             end
         end
-        mt_id = find(near_mts); %indices of nearby MTs
+    end
+    pot_mt_id = find(pot_near_mts); %indices of potential nearby MTs
+    near_mts = zeros(length(pot_mt_id),1); 
+    for j = 1:length(pot_mt_id)
+        for jj = 1:size(interp_mts{pot_mt_id(j)},1)
+            if ((abs(interp_mts{pot_mt_id(j)}(jj,1)-mx_tk) < mt_dist) && (abs(interp_mts{pot_mt_id(j)}(jj,2)-my_tk) < mt_dist)) %centroid of motor trajectory within mt_dist nm of a position along MT
+                near_mts(j) = 1; %1 if MT is nearby
+            end
+        end
+    end
+    if nnz(near_mts)>0
+        mt_id = pot_mt_id(logical(near_mts)); %indices of nearby MTs
 %         mt_tk = [];
         if length(mt_id) == 1
             mt_tk = mt_id;
@@ -166,6 +179,10 @@ for tk = 1:ntracks
             skip_tk = 1; %track not near a MT
             continue
         end
+    else
+        skip_tk = 1; %track not near a MT
+        continue
+    end
     
 %     % for testing, fit "MT" to trajectory %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     pseudo_mt = polyfit(x_tk,y_tk,1);
@@ -245,17 +262,19 @@ for tk = 1:ntracks
     
     %% Store data
     traj(ftk).position = position;
+    traj(ftk).offaxis_position = position_off;
     traj(ftk).x = x_tk;
     traj(ftk).y = y_tk;
     traj(ftk).frames = frame_tk;
     traj(ftk).mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
     traj(ftk).run_length = position(end);
+    traj(ftk).inst_vel = inst_vel;
     if length (frame_tk) > l_window + 4
         traj(ftk).proc_frames = proc_frames;
         traj(ftk).loc_alpha = loc_alpha;
         traj(ftk).proc_vel = proc_vel;
     end
-    traj(ftk).inst_vel = inst_vel;
+    
     cum_run_length = [cum_run_length; position(end)];
     cum_censored = censored;
     
@@ -267,6 +286,7 @@ if zplot ~= 0
     for ftk = 1:size(cum_run_length,1)
         figure(traj_plot), hold on, plot(traj(ftk).x,traj(ftk).y,'.-','Color',cmap(ftk,:)) %plots trajectories
         figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
+        figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
     end
 end
 
@@ -274,25 +294,36 @@ end
 %% Plot parameters to check data
 if zplot ~=0
     figure,totrl=gcf; %initialize figure
-    [trl_n, trl_edges]=histcounts(cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'Count');
+    [trl_n, trl_edges]=histcounts(cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'pdf');
     nhist_trl=trl_n;
     xhist_trl=trl_edges+(rl_binwidth/2);
     xhist_trl(end)=[]; 
     figure(totrl), hold on 
     bar(xhist_trl,nhist_trl)
-    xlabel('Total run length (nm)'), ylabel('Count'), title([motor,' ', mt_type,' Total run length histogram'])
+    xlabel('Total run length (nm)'), ylabel('Probability density'), title([motor,' ', mt_type,' Total run length histogram'])
     opt = statset('mlecustom');
     opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
     p0 = [1000];
     loL = [300];
     upL = [3000];
-    [estimRL pciRL] = mle(cum_run_length,'Distribution','exponential','Censoring',censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
-
+    [estimRL, pciRL] = mle(cum_run_length,'Distribution','exponential','Censoring',censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+    %plot fit
+    yRL = exppdf(xhist_trl, estimRL);
+    yRLlo = exppdf(xhist_trl, pciRL(1));
+    yRLhi = exppdf(xhist_trl, pciRL(2));
+    plot(xhist_trl,0.8.*yRL,'r-');
+    plot(xhist_trl,0.8.*yRLlo,'r.');
+    plot(xhist_trl,0.8.*yRLhi,'r.');
+    hold off
 
     
 end
 
 %% Save data
 if zsave ~= 0
+    save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+    % save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+    save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
+    save([save_dirname,save_filename],'traj','cum_run_length','cum_censored')
 end

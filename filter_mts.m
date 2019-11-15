@@ -13,6 +13,8 @@ if zplot ~= 0
     xlabel('x (nm)'), ylabel('y (nm)'), title('Microtubules')
 end
 
+all_mt_near_diff_mt = [];
+
 if analyze_mt_num ~= -1
     disp(strcat('Analyzing only MT ',num2str(analyze_mt_num)))
     filt_cross = 0; %if analyzing only one MT, do not filter out e.g. crossing MTs
@@ -113,6 +115,7 @@ if filt_cross ~= 0 %filter out MTs that are near other MTs
         points_near_diff_mt = unique(points_near_diff_mt,'stable');
         if ~isempty(points_near_diff_mt)
             mt_near_diff_mt = [mt_kq(points_near_diff_mt,1),mt_kq(points_near_diff_mt,2)];
+            all_mt_near_diff_mt = [all_mt_near_diff_mt; mt_near_diff_mt];
             skip_mts(i) = 1;
         end
     end
@@ -122,7 +125,7 @@ if zplot ~=0
     for i = 1:num_mts
         figure(mt_plot), hold on, plot(interp_mts{i}(:,1),interp_mts{i}(:,2),'-','Color',[0 0 0])
         if filt_cross ~= 0
-            figure(mt_plot), hold on, plot(mt_near_diff_mt(:,1),mt_near_diff_mt(:,2),'*','Color',[0 0 0]) %parts of MT considered crossing
+            figure(mt_plot), hold on, plot(all_mt_near_diff_mt(:,1),all_mt_near_diff_mt(:,2),'*','Color',[0 0 0]) %parts of MT considered crossing
         end
     end
 end

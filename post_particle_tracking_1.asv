@@ -109,6 +109,7 @@ end
 %% Initialize variables
 censored = []; %track reaches end of MT
 cum_run_length = [];
+cum_mts = [];
 ftk = 0; %number of tracks that passes all filtering
 
 %% Analyze
@@ -234,6 +235,7 @@ for tk = 1:ntracks
     position_off = cumsum(delp_off); %position of track perpendicular to MT vector
     if position(end) < 0 %motor moves from high to low x values (i.e. MT drawn the "wrong" way)
         position = position.*-1;
+        %flip_traj = 1;
     end
 
 %     % Plot trajectory
@@ -262,10 +264,12 @@ for tk = 1:ntracks
     
     %% Store data
     traj(ftk).position = position;
+    %traj(ftk).flipped = flip_traj;
     traj(ftk).offaxis_position = position_off;
     traj(ftk).x = x_tk;
     traj(ftk).y = y_tk;
     traj(ftk).frames = frame_tk;
+    traj(ftk).mt = mt_tk;
     traj(ftk).mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
     traj(ftk).run_length = position(end);
     traj(ftk).inst_vel = inst_vel;
@@ -277,6 +281,7 @@ for tk = 1:ntracks
     
     cum_run_length = [cum_run_length; position(end)];
     cum_censored = censored;
+    cum_mts = [cum_mts; mt_tk];
     
 end
 profile viewer
@@ -286,7 +291,52 @@ if zplot ~= 0
     for ftk = 1:size(cum_run_length,1)
         figure(traj_plot), hold on, plot(traj(ftk).x,traj(ftk).y,'.-','Color',cmap(ftk,:)) %plots trajectories
         figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
-        figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
+        figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots off-axis "kymographs"
+    end
+    
+    for mttk = 1:num_mts
+        ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
+        if ~isempty(ftk_on_mt)
+            mt_ends = [mts{mttk}(1,:);mts{mttk}(end,:)]';
+            figure, hold on
+            for j=1:length(ftk_on_mt)
+                % find which end of MT motor moves towards
+%                 tk_ends = [traj(ftk_on_mt(j)).x(1),traj(ftk_on_mt(j)).y(1);traj(ftk_on_mt(j)).x(end),traj(ftk_on_mt(j)).y(end)]';
+%                 A = repmat(tk_ends,[1 length(mt_ends)]);
+%                 [min_val,closest_ind] = min(abs(A-mt_ends'));
+%                 closest_value = tk_ends(closest_ind); %first (1) or last (2) position of tk closer to a MT end
+                
+                start_tk = [traj(ftk_on_mt(j)).x(1),traj(ftk_on_mt(j)).y(1)];
+                end_tk = [traj(ftk_on_mt(j)).x(end),traj(ftk_on_mt(j)).y(end)];
+                dist_to_mtend_start = abs(norm(mt_ends - start_tk)); %distance to each MT end from start of track
+                minDist_start = min(dist_to_mtend_start); %minimum distance to MT end
+                idx_start = find(dist_to_mtend_start == minDist_start); %which end of MT end is closer to start of track (1=first MT position; 2=last)
+                dist_to_mtend_end = abs(norm((mt_ends - endt_tk))); %distance to each MT end from end of track
+                minDist_end = min(dist_to_mtend_end); %minimum distance to MT end
+                idx_end = find(dist_to_mtend_end == minDist_end); %which end of MT end is closer to end of track (1=first MT position; 2=last)
+                if idx_start == idx_end %both start and end of track closer to same side of MT
+                    if idx_start == 1 %both close to first MT point
+                        if minDist_start <minDist_end
+                            pos_on_mt = minDist_start;
+                        else
+                            %use MT length-minDist_start
+                        end
+                    else %idx_start == 2 %both close to last MT point
+                        if minDist_start < minDist_end
+                            pos_on_mt = minDist_start;
+                        else
+                            %use MT length-minDist_start
+                        end
+                    end
+                else
+                    pos_on_mt = minDist_start;
+                end
+                
+                plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
+            end
+            xlabel('time (s)'), ylabel('position (nm)'), title(['Kymographs for MT number ', num2str(mttk)])
+            hold off
+        end
     end
 end
 

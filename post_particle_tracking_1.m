@@ -21,14 +21,13 @@
 %
 
 clear all, close all
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro')
+set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT
-
-set(0,'DefaultFigureWindowStyle','docked')
-%addpath(' ')
 
 %% Parameters
 % From imaging:
@@ -67,11 +66,12 @@ mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
 fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
 temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
 fclose(fid); 
-[mts, interp_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, num_pix_x, num_pix_y, zplot);
+[mts, interp_mts, cross_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, num_pix_x, num_pix_y, zplot);
 all_interp_mts = [];
 for j = 1: size(interp_mts,1)
     all_interp_mts = [all_interp_mts;interp_mts{j}];
 end
+cross_mt_ind = find(cross_mts);
 num_mts = size(mts,1);
 
 % Read in particle data
@@ -93,7 +93,9 @@ for i = 1:size(temp_motor_dat,1)
 end
 % array of doubles with columns: %1=x[px] %2=y[px] %3=frame_num %4=x[nm] %5=x_loc_error[nm] %6=y[nm] %7=y_loc_error[nm] %8=amplitude_fit %9=amplitude_error %10=BG_fit %11=BG_error %12=sd_x[nm] %13=sd_x_error[nm] %14=sd_y[nm] %15=sd_y_error[nm] %16=false_positive %17=integrated_intens %18=SNR %19=R2_fit %20=track_ID %21=particle_ID %22=track_length
 ntracks = motor_dat(end,20); %number of tracks
-cmap=colormap(lines(ntracks));
+% colormap(parula)
+% cmap=colormap(lines(num_mts));
+cmap=colormap(colorcube(num_mts));
 
 %% Initialize figures
 if zplot ~= 0
@@ -105,15 +107,22 @@ if zplot ~= 0
     
     figure, offaxis_plot=gcf;
     xlabel('time (s)'), ylabel('off-axis position (nm)'), title('Off-axis position')
+    
+    figure, mt_plot=gcf;
+    xlabel('x (nm)'), ylabel('y (nm)'), title('Microtubules')
 end
 %% Initialize variables
 censored = []; %track reaches end of MT
 cum_run_length = [];
 cum_mts = [];
+mts_start = cell(num_mts,1);
+mts_end = cell(num_mts,1);
+flip_mt = zeros(1,num_mts);
+no_flip = zeros(1,num_mts);
 ftk = 0; %number of tracks that passes all filtering
 
 %% Analyze
-profile on
+% profile on
 for tk = 1:ntracks
     skip_tk = 0; % 1 if track fails to meet 1 or more of the filtering conditions (incl. min duratiom, present in first/last frame)
     cens_tk = 0; %1 if spots in track too close to MT end (i.e. run length is limited by MT length -> censored)
@@ -170,8 +179,8 @@ for tk = 1:ntracks
                 [~,uni_ind] = unique(interp_mts{mt_id(j)}(:,1),'stable'); %find repeated x-values in MT
                 uni_ind = sort(uni_ind);
                 fit_mt = polyfit(interp_mts{mt_id(j)}(uni_ind,1),interp_mts{mt_id(j)}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
-                interp_mt = polyval(fit_mt,x_tk);
-                mt_error(j,1) = sum(abs(y_tk - interp_mt));
+                interp_mt_for_motor = polyval(fit_mt,x_tk);
+                mt_error(j,1) = sum(abs(y_tk - interp_mt_for_motor));
             end
             mt_tk = mt_id(mt_error==min(mt_error)); %choose MT that motor trajectory is closest to
             mt_tk = mt_tk(1); %if more than one MT equally close, choose first MT
@@ -184,6 +193,11 @@ for tk = 1:ntracks
         skip_tk = 1; %track not near a MT
         continue
     end
+
+    if any(cross_mt_ind(:) == mt_tk) == 1
+        skip_tk = 1;
+        continue
+    end
     
 %     % for testing, fit "MT" to trajectory %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     pseudo_mt = polyfit(x_tk,y_tk,1);
@@ -193,6 +207,15 @@ for tk = 1:ntracks
 %     uni_ind = sort(uni_ind);
 %     mt_coords = mt_coords(uni_ind,:);
     
+    % If MT is oriented the "wrong" way, reverse MT
+    dist_to_start = sqrt((mts{mt_tk}(1,1) - x_tk(1)).^2+(mts{mt_tk}(1,2) - y_tk(1)).^2); %distance from start of MT to start of track
+    dist_to_end = sqrt((mts{mt_tk}(1,1) - x_tk(end)).^2+(mts{mt_tk}(1,2) - y_tk(end)).^2); %distance from start of MT to end of track (if this is smaller, MT is the "wrong" way around
+    if dist_to_start > dist_to_end %motor moves towards start of MT, MT is the "wrong" way
+        flip_mt(mt_tk) = flip_mt(mt_tk)+1; 
+    elseif dist_to_start < dist_to_end 
+        no_flip(mt_tk) = no_flip(mt_tk)+1;
+    end
+
     % Find points of track considered to be at end of MT (no distinction made between plus and minus end)
     motorsq = [x_tk,y_tk];
     mtendsq = [mt_coords(1,:);mt_coords(end,:)];
@@ -209,22 +232,23 @@ for tk = 1:ntracks
     all_ind = 1:1:duration_tk; %all indices (of tk variables)
     ind_alongmt = setdiff(all_ind,ind_mtend,'stable'); %indices of track (within tk variables) along length of MT
     
-    % project track along MT
+    interp_mt_coords = interp_mts{mt_tk};
+    % project track along MT - finding MT/norm(MT)
     fit_vector = [];
     motor_vector = [0,0;diff(x_tk),diff(y_tk)];
     mt_vector = [0,0;diff(mt_coords)];
     % polynomial fit to vector (gives MT coordinates for each spot localized in track)
-    [~,uni_ind] = unique(interp_mts{mt_tk}(:,1),'stable'); %find repeated x-values in MT
-    uni_ind = sort(uni_ind);
-    fit_mt = polyfit(interp_mts{mt_tk}(uni_ind,1),interp_mts{mt_tk}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
-    interp_mt = polyval(fit_mt,x_tk);
+    [~,uni_ind] = unique(interp_mt_coords(:,1),'stable'); %find repeated x-values in MT
+    %uni_ind = sort(uni_ind);
+    fit_mt = polyfit(interp_mt_coords(uni_ind,1),interp_mt_coords(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+    interp_mt_for_motor = polyval(fit_mt,x_tk);
 %     fit_vector(:,1) = interp1(mt_coords(:,1),mt_vector(:,1),x_tk,'pchip'); 
 %     fit_vector(:,2) = interp1(mt_coords(:,1),mt_vector(:,2),x_tk,'pchip');
     fit_vector(:,1) = x_tk;
-    fit_vector(:,2) = interp_mt;
+    fit_vector(:,2) = interp_mt_for_motor;
     fit_norm = repmat(sqrt(sum(fit_vector.^2,2)),1,2);
     fit_vector_norm = fit_vector./fit_norm; %normalize
-    %project
+    %project - taking dot(track,MT)*MT/norm(MT)
     delp = zeros(1,numel(x_tk));
     delp_off = zeros(1,numel(x_tk));
     for kv = 1:numel(x_tk)
@@ -233,10 +257,6 @@ for tk = 1:ntracks
     end
     position = cumsum(delp); %position of track along MT vector
     position_off = cumsum(delp_off); %position of track perpendicular to MT vector
-    if position(end) < 0 %motor moves from high to low x values (i.e. MT drawn the "wrong" way)
-        position = position.*-1;
-        %flip_traj = 1;
-    end
 
 %     % Plot trajectory
 %     if zplot ~= 0 %&& skip_tk~=1 %&& mod(tk,10) == 0
@@ -264,7 +284,9 @@ for tk = 1:ntracks
     
     %% Store data
     traj(ftk).position = position;
-    %traj(ftk).flipped = flip_traj;
+    traj(ftk).flip = flip_mt(mt_tk);
+    traj(ftk).mt_coords = mt_coords; %will be flipped if needed for track --> does not necessarily match mts{mt_tk}
+    traj(ftk).interp_mt_coords = interp_mt_coords; %will be flipped if needed for track --> does not necessarily match interp_mts{mt_tk}
     traj(ftk).offaxis_position = position_off;
     traj(ftk).x = x_tk;
     traj(ftk).y = y_tk;
@@ -279,62 +301,77 @@ for tk = 1:ntracks
         traj(ftk).proc_vel = proc_vel;
     end
     
-    cum_run_length = [cum_run_length; position(end)];
+    cum_run_length = [cum_run_length; abs(position(end))];
     cum_censored = censored;
     cum_mts = [cum_mts; mt_tk];
     
 end
-profile viewer
+% profile viewer
+
+% identify plus ends of MTs
+for mttk = 1:num_mts
+    if flip_mt(mttk) > no_flip(mttk)
+        mts{mttk} = flipud(mts{mttk});
+        interp_mts{mttk} = flipud(interp_mts{mttk});
+    end
+end
 
 %% Plot
 if zplot ~= 0
     for ftk = 1:size(cum_run_length,1)
-        figure(traj_plot), hold on, plot(traj(ftk).x,traj(ftk).y,'.-','Color',cmap(ftk,:)) %plots trajectories
-        figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(ftk,:)) %plots "kymographs"
-        figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots off-axis "kymographs"
+        figure(traj_plot), hold on, plot(traj(ftk).x,traj(ftk).y,'.-','Color',cmap(traj(ftk).mt,:)) %plots trajectories
+        figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(traj(ftk).mt,:)) %plots "kymographs"
+        %figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots off-axis "kymographs"
+    end
+    
+    for mttk = 1:num_mts
+        figure(mt_plot), hold on, plot(mts{mttk}(:,1),mts{mttk}(:,2),'-','Color',[0 0 0]) %MT
+        %ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
+        if ~isempty(mts_start{mttk})
+%             figure(mt_plot), hold on, plot(mts{mttk}(:,1),mts{mttk}(:,2),'-','Color',[0 0 0]) %MT
+            figure(mt_plot), hold on, plot(mts_start{mttk}(:,1),mts_start{mttk}(:,2),'o','Color',[1 0 0]) %MT start point
+            figure(mt_plot), hold on, plot(mts_end{mttk}(:,1),mts_end{mttk}(:,2),'o','Color',[0 0 1]) %MT end point
+        end
     end
     
     for mttk = 1:num_mts
         ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
         if ~isempty(ftk_on_mt)
             mt_ends = [mts{mttk}(1,:);mts{mttk}(end,:)]';
+             %mt_xy = interp_mts{mttk};
+             mt_vector = [0,0;diff(mts{mttk})];
+             mt_cum_length = cumsum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
+             mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
+
+            % polynomial fit to vector (gives MT coordinates for each spot localized in track)
+            [~,uni_ind] = unique(interp_mts{mttk}(:,1),'stable'); %find repeated x-values in MT
+            %uni_ind = sort(uni_ind);
+            fit_mt = polyfit(interp_mts{mttk}(uni_ind,1),interp_mts{mttk}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+            mt_slope = fit_mt(1);
+            mt_yint = fit_mt(2);
+            perp_slope = -1/mt_slope;
+
             figure, hold on
             for j=1:length(ftk_on_mt)
-                % find which end of MT motor moves towards
-%                 tk_ends = [traj(ftk_on_mt(j)).x(1),traj(ftk_on_mt(j)).y(1);traj(ftk_on_mt(j)).x(end),traj(ftk_on_mt(j)).y(end)]';
-%                 A = repmat(tk_ends,[1 length(mt_ends)]);
-%                 [min_val,closest_ind] = min(abs(A-mt_ends'));
-%                 closest_value = tk_ends(closest_ind); %first (1) or last (2) position of tk closer to a MT end
+                %find closest point along MT to start of track
+                perp_yint_start = -perp_slope*traj(ftk_on_mt(j)).x(1)+traj(ftk_on_mt(j)).y(1);
+                x_intersect_start = (perp_yint_start-mt_yint)/(mt_slope-perp_slope);
+                y_intersect_start = perp_slope*x_intersect_start + perp_yint_start;
+                %find closest point along MT to end of track
+                perp_yint_end = -perp_slope*traj(ftk_on_mt(j)).x(end)+traj(ftk_on_mt(j)).y(end);
+                x_intersect_end = (perp_yint_end-mt_yint)/(mt_slope-perp_slope);
+                y_intersect_end = perp_slope*x_intersect_end + perp_yint_end;
                 
-                start_tk = [traj(ftk_on_mt(j)).x(1),traj(ftk_on_mt(j)).y(1)];
-                end_tk = [traj(ftk_on_mt(j)).x(end),traj(ftk_on_mt(j)).y(end)];
-                dist_to_mtend_start = abs(norm(mt_ends - start_tk)); %distance to each MT end from start of track
-                minDist_start = min(dist_to_mtend_start); %minimum distance to MT end
-                idx_start = find(dist_to_mtend_start == minDist_start); %which end of MT end is closer to start of track (1=first MT position; 2=last)
-                dist_to_mtend_end = abs(norm((mt_ends - endt_tk))); %distance to each MT end from end of track
-                minDist_end = min(dist_to_mtend_end); %minimum distance to MT end
-                idx_end = find(dist_to_mtend_end == minDist_end); %which end of MT end is closer to end of track (1=first MT position; 2=last)
-                if idx_start == idx_end %both start and end of track closer to same side of MT
-                    if idx_start == 1 %both close to first MT point
-                        if minDist_start <minDist_end
-                            pos_on_mt = minDist_start;
-                        else
-                            pos_on_mt = dist_to_mtend_start(2);%use distance from track start to other MT end
-                        end
-                    else %idx_start == 2 %both close to last MT point
-                        if minDist_start < minDist_end
-                            pos_on_mt = minDist_start;
-                        else
-                            pos_on_mt = dist_to_mtend_start(1);%use distance from track start to other MT end
-                        end
-                    end
-                else
-                    pos_on_mt = minDist_start;
-                end
-                
-                plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
+                %find position of motor along MT
+                dist_to_start = sqrt((mt_ends(1,1) - x_intersect_start).^2+(mt_ends(1,2) - y_intersect_start).^2); %distance from start of MT to start of track
+                dist_to_end = sqrt((mt_ends(1,1) - x_intersect_end).^2+(mt_ends(1,2) - y_intersect_end).^2); %distance from start of MT to end of track (if this is smaller, MT is the "wrong" way around
+                pos_on_mt = traj(ftk_on_mt(j)).position + dist_to_start;
+
+                plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
+                %plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
             end
-            xlabel('time (s)'), ylabel('position (nm)'), title(['Kymographs for MT number ', num2str(mttk)])
+            xlabel('time (s)'), ylabel('position along MT (nm)'), title(['Kymographs for MT number ', num2str(mttk), ' (MT length ', num2str(mt_length), 'nm)'])
+            xlim([0 num_frames*exp_time])%, ylim([0 mt_length])
             hold off
         end
     end

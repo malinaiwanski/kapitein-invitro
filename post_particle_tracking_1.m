@@ -18,16 +18,17 @@
 % To use this file you will need the following files:
 % Results from DoM Utrecht particle localization and tracking (csv; file name must start with DoM)
 % MT x,y positions (csv; file name must start with MT)
-%
 
 clear all, close all
 addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro')
 set(0,'DefaultFigureWindowStyle','docked')
+
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
-zsave = 0;
+zsave = 1;
 % Filtering
-filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT
+filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
+filt_rl = 1; %ignore track with a very short displacement (likely static) - set this distance in the parameters > for analysis section
 
 %% Parameters
 % From imaging:
@@ -39,6 +40,7 @@ num_pix_y = 512;
 
 % For analysis:
 min_duration = 5; %minimum length of track to be analyzed [frames]
+min_rl = 150; %minimum run length of track to be analyzed [nm]
 end_dist = 200; %maximum distance to first/last point of a MT for a spot localization to be considered to be at MT end [nm]
 mt_dist = 400; %maximum distance to some MT for track to considered on a MT and thus analyzed [nm]
 analyze_mt_num = -1; %specify which MT to analyze, based on MT id in text file (these start at 0); if this is -1, all MTs will be analyzed
@@ -46,16 +48,16 @@ mt_cross_dist = 200; %distance between points on two MTs for them to be consider
 l_window = 7; %number of frames to average for sliding MSD analysis
 msd_thresh = 1.1; %alpha-value above which is processive, below which is paused
 msd_step = 0.3; %minimum threshold for findchangepts function; minimum improvement in residual error; changepoints currently based on mean values, but can use rms, std, mean and slope
-l_min = 3; %minimum distance between two changepoints - smallest duration of pause/run
+l_min = 3; %minimum distance between two changepoints - smallest duration of pause/run [frames]
 
 % For plotting:
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a';
-mt_type = '1cycle_cpp';
+mt_type = 'gdp_taxol'; %'1cycle_cpp';
 date = '2019-10-30';
-filenum = 1;
+filenum = 2;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -66,18 +68,20 @@ mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
 fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
 temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
 fclose(fid); 
-[mts, interp_mts, cross_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, num_pix_x, num_pix_y, zplot);
+[mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, num_pix_x, num_pix_y, zplot);
 all_interp_mts = [];
 for j = 1: size(interp_mts,1)
     all_interp_mts = [all_interp_mts;interp_mts{j}];
 end
-cross_mt_ind = find(cross_mts);
+filt_mt_ind = find(skip_mts);
 num_mts = size(mts,1);
 
 % Read in particle data
 motor_file = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
 fid=fopen(fullfile(dirname,motor_file(filenum).name)); %opens the specified file in the list and imports data
 
+disp('------------Reading in data from file:------------')
+disp(strcat(date,'\',motor,'\',mt_type,'\',motor_file(filenum).name))
 %for testing %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % motor_file = dir(fullfile('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\2019-10-30\kif1a\1cycle_cpp','DoM*.csv'));
 % fid=fopen(fullfile(motor_file(1).name));
@@ -93,9 +97,9 @@ for i = 1:size(temp_motor_dat,1)
 end
 % array of doubles with columns: %1=x[px] %2=y[px] %3=frame_num %4=x[nm] %5=x_loc_error[nm] %6=y[nm] %7=y_loc_error[nm] %8=amplitude_fit %9=amplitude_error %10=BG_fit %11=BG_error %12=sd_x[nm] %13=sd_x_error[nm] %14=sd_y[nm] %15=sd_y_error[nm] %16=false_positive %17=integrated_intens %18=SNR %19=R2_fit %20=track_ID %21=particle_ID %22=track_length
 ntracks = motor_dat(end,20); %number of tracks
-% colormap(parula)
-% cmap=colormap(lines(num_mts));
-cmap=colormap(colorcube(num_mts));
+% cmap = colormap(parula(num_mts));
+% cmap = colormap(lines(num_mts));
+cmap = colormap(colorcube(num_mts));
 
 %% Initialize figures
 if zplot ~= 0
@@ -108,15 +112,16 @@ if zplot ~= 0
     figure, offaxis_plot=gcf;
     xlabel('time (s)'), ylabel('off-axis position (nm)'), title('Off-axis position')
     
-    figure, mt_plot=gcf;
-    xlabel('x (nm)'), ylabel('y (nm)'), title('Microtubules')
 end
 %% Initialize variables
-censored = []; %track reaches end of MT
 cum_run_length = [];
+censored = []; %track reaches end of MT
+cum_mean_vel = [];
+cum_proc_vel = [];
+cum_inst_vel = [];
+cum_loc_alpha = [];
+cum_association_time = [];
 cum_mts = [];
-mts_start = cell(num_mts,1);
-mts_end = cell(num_mts,1);
 flip_mt = zeros(1,num_mts);
 no_flip = zeros(1,num_mts);
 ftk = 0; %number of tracks that passes all filtering
@@ -143,6 +148,12 @@ for tk = 1:ntracks
     
     % FILTER: do not analyze track if present in first or last frame of movie (censored)
     if frame_tk(1) == 1 || frame_tk(end) == num_frames
+        skip_tk = 1;
+        continue
+    end
+    
+    % FILTER: do not analyze track if it is static (very short run length)
+    if filt_rl == 1 && sqrt((x_tk(end)-x_tk(1))^2+(y_tk(end)-y_tk(1))^2) < min_rl
         skip_tk = 1;
         continue
     end
@@ -194,7 +205,8 @@ for tk = 1:ntracks
         continue
     end
 
-    if any(cross_mt_ind(:) == mt_tk) == 1
+    %FILTER: do not analyze track if it is along a MT that is to be ignored
+    if any(filt_mt_ind(:) == mt_tk) == 1
         skip_tk = 1;
         continue
     end
@@ -207,7 +219,7 @@ for tk = 1:ntracks
 %     uni_ind = sort(uni_ind);
 %     mt_coords = mt_coords(uni_ind,:);
     
-    % If MT is oriented the "wrong" way, reverse MT
+    % If MT is oriented the "wrong" way, this track suggests we reverse MT (actually decided based on tally from all tracks along a given MT)
     dist_to_start = sqrt((mts{mt_tk}(1,1) - x_tk(1)).^2+(mts{mt_tk}(1,2) - y_tk(1)).^2); %distance from start of MT to start of track
     dist_to_end = sqrt((mts{mt_tk}(1,1) - x_tk(end)).^2+(mts{mt_tk}(1,2) - y_tk(end)).^2); %distance from start of MT to end of track (if this is smaller, MT is the "wrong" way around
     if dist_to_start > dist_to_end %motor moves towards start of MT, MT is the "wrong" way
@@ -232,23 +244,67 @@ for tk = 1:ntracks
     all_ind = 1:1:duration_tk; %all indices (of tk variables)
     ind_alongmt = setdiff(all_ind,ind_mtend,'stable'); %indices of track (within tk variables) along length of MT
     
+    %%%%%%%%%%%%%% All filtering is done before this point %%%%%%%%%%%%%%%%
+    ftk = ftk+1; %only advances if track is not filtered
+    censored = [censored; cens_tk]; %cens_tk is 1 if track reaches MT end, 0 if not
+    
+    traj(ftk).mt = mt_tk;
+    traj(ftk).x = x_tk;
+    traj(ftk).y = y_tk;
+    traj(ftk).frames = frame_tk;
+    traj(ftk).duration = duration_tk;
+    traj(ftk).ind_mtend = ind_mtend;
+    traj(ftk).ind_alongmt = ind_alongmt;
+end
+ nfilttracks = ftk;
+ 
+% identify plus ends of MTs
+for mttk = 1:num_mts
+    if flip_mt(mttk) > no_flip(mttk)
+        mts{mttk} = flipud(mts{mttk});
+        interp_mts{mttk} = flipud(interp_mts{mttk});
+        %disp(['flipped MT number ',num2str(mttk)])
+    end
+end
+
+for ftk = 1:nfilttracks
+    mt_tk = traj(ftk).mt;
+    mt_coords = mts{mt_tk};
     interp_mt_coords = interp_mts{mt_tk};
-    % project track along MT - finding MT/norm(MT)
+    
+    x_tk = traj(ftk).x;
+    y_tk = traj(ftk).y;
+    frame_tk = traj(ftk).frames;
+    duration_tk = traj(ftk).duration;
+    
+    ind_mtend = traj(ftk).ind_mtend;
+    ind_alongmt = traj(ftk).ind_alongmt;
+    
+    %% project track along MT
+    %finding MT/norm(MT)
     fit_vector = [];
     motor_vector = [0,0;diff(x_tk),diff(y_tk)];
     mt_vector = [0,0;diff(mt_coords)];
+    
+%     if flip_mt(mt_tk)  > no_flip(mt_tk) %~= 0
+%         motor_vector = motor_vector*-1;
+%         mt_vector = mt_vector*-1;
+%     end
+    
     % polynomial fit to vector (gives MT coordinates for each spot localized in track)
     [~,uni_ind] = unique(interp_mt_coords(:,1),'stable'); %find repeated x-values in MT
     %uni_ind = sort(uni_ind);
     fit_mt = polyfit(interp_mt_coords(uni_ind,1),interp_mt_coords(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
     interp_mt_for_motor = polyval(fit_mt,x_tk);
-%     fit_vector(:,1) = interp1(mt_coords(:,1),mt_vector(:,1),x_tk,'pchip'); 
-%     fit_vector(:,2) = interp1(mt_coords(:,1),mt_vector(:,2),x_tk,'pchip');
-    fit_vector(:,1) = x_tk;
-    fit_vector(:,2) = interp_mt_for_motor;
+%     fit_vector(:,1) = x_tk;
+%     fit_vector(:,2) = interp_mt_for_motor;
+    [~,uni_ind2] = unique(mt_coords(:,1),'stable'); %find repeated x-values in MT
+    fit_vector(:,1)=interp1(mt_coords(uni_ind2,1),mt_vector(uni_ind2,1),x_tk,'pchip');
+    fit_vector(:,2)=interp1(mt_coords(uni_ind2,1),mt_vector(uni_ind2,2),x_tk,'pchip');
     fit_norm = repmat(sqrt(sum(fit_vector.^2,2)),1,2);
     fit_vector_norm = fit_vector./fit_norm; %normalize
-    %project - taking dot(track,MT)*MT/norm(MT)
+    
+    %taking dot(track,MT)*MT/norm(MT)
     delp = zeros(1,numel(x_tk));
     delp_off = zeros(1,numel(x_tk));
     for kv = 1:numel(x_tk)
@@ -258,7 +314,7 @@ for tk = 1:ntracks
     position = cumsum(delp); %position of track along MT vector
     position_off = cumsum(delp_off); %position of track perpendicular to MT vector
 
-%     % Plot trajectory
+%     %% Plot trajectory
 %     if zplot ~= 0 %&& skip_tk~=1 %&& mod(tk,10) == 0
 %         figure(traj_plot), hold on, plot(x_tk,y_tk,'.-','Color',cmap(tk,:)) %plots trajectories
 %         figure(kymo_plot), hold on, plot(frame_tk.*exp_time,position,'.-','Color',cmap(tk,:)) %plots "kymographs"
@@ -272,49 +328,57 @@ for tk = 1:ntracks
         proc_frames = tmsd_res(:,3); %was frame marked as processive (1) or paused/diffusive (0)
     end
     
-    %%%%%%%%%%%%%% All filtering is done before this point %%%%%%%%%%%%%%%%
-    ftk = ftk+1; %only advances if track is not filtered
-    censored = [censored; cens_tk]; %cens_tk is 1 if track reaches MT end, 0 if not
-    
     %% Calculate parameters
     inst_vel = diff(position)./diff(frame_tk.*exp_time);
+    mean_vel = (position(end))/((frame_tk(end)-frame_tk(1)+1)*exp_time);
     if length (frame_tk) > l_window + 4
         proc_vel = diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
-    end
+    end 
+%     if flip_mt(mt_tk) > no_flip(mt_tk)
+%         inst_vel = inst_vel.*-1;
+%         mean_vel = mean_vel.*-1;
+%         if length (frame_tk) > l_window + 4
+%             proc_vel = proc_vel.*-1;
+%         end
+%     end
     
     %% Store data
-    traj(ftk).position = position;
+    traj(ftk).mt = mt_tk;
     traj(ftk).flip = flip_mt(mt_tk);
-    traj(ftk).mt_coords = mt_coords; %will be flipped if needed for track --> does not necessarily match mts{mt_tk}
-    traj(ftk).interp_mt_coords = interp_mt_coords; %will be flipped if needed for track --> does not necessarily match interp_mts{mt_tk}
-    traj(ftk).offaxis_position = position_off;
     traj(ftk).x = x_tk;
     traj(ftk).y = y_tk;
     traj(ftk).frames = frame_tk;
-    traj(ftk).mt = mt_tk;
+    traj(ftk).duration = duration_tk;
+    
+    traj(ftk).ind_alongmt = ind_alongmt;
+    traj(ftk).ind_mtend = ind_mtend;
+    
+    traj(ftk).position = position;
+    traj(ftk).mt_coords = mt_coords; %will be flipped if needed for track --> does not necessarily match mts{mt_tk}
+    traj(ftk).interp_mt_coords = interp_mt_coords; %will be flipped if needed for track --> does not necessarily match interp_mts{mt_tk}
+    traj(ftk).offaxis_position = position_off;
     traj(ftk).mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
     traj(ftk).run_length = position(end);
-    traj(ftk).inst_vel = inst_vel;
-    if length (frame_tk) > l_window + 4
+    traj(ftk).inst_vel = inst_vel(1,:);
+    if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
         traj(ftk).proc_frames = proc_frames;
         traj(ftk).loc_alpha = loc_alpha;
-        traj(ftk).proc_vel = proc_vel;
+        traj(ftk).proc_vel = proc_vel(1,:);
     end
     
     cum_run_length = [cum_run_length; abs(position(end))];
     cum_censored = censored;
+    cum_mean_vel = [cum_mean_vel; mean_vel];%abs(position(end))/(duration_tk*exp_time)];
+    cum_inst_vel = [cum_inst_vel, inst_vel(1,:)];
+    if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
+        cum_proc_vel = [cum_proc_vel, proc_vel(1,:)];
+        cum_loc_alpha = [cum_loc_alpha; loc_alpha];
+    end
     cum_mts = [cum_mts; mt_tk];
+    cum_association_time = [cum_association_time; (frame_tk(end)-frame_tk(1)+1)*exp_time];
     
 end
 % profile viewer
-
-% identify plus ends of MTs
-for mttk = 1:num_mts
-    if flip_mt(mttk) > no_flip(mttk)
-        mts{mttk} = flipud(mts{mttk});
-        interp_mts{mttk} = flipud(interp_mts{mttk});
-    end
-end
 
 %% Plot
 if zplot ~= 0
@@ -324,16 +388,7 @@ if zplot ~= 0
         %figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots off-axis "kymographs"
     end
     
-    for mttk = 1:num_mts
-        figure(mt_plot), hold on, plot(mts{mttk}(:,1),mts{mttk}(:,2),'-','Color',[0 0 0]) %MT
-        %ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
-        if ~isempty(mts_start{mttk})
-%             figure(mt_plot), hold on, plot(mts{mttk}(:,1),mts{mttk}(:,2),'-','Color',[0 0 0]) %MT
-            figure(mt_plot), hold on, plot(mts_start{mttk}(:,1),mts_start{mttk}(:,2),'o','Color',[1 0 0]) %MT start point
-            figure(mt_plot), hold on, plot(mts_end{mttk}(:,1),mts_end{mttk}(:,2),'o','Color',[0 0 1]) %MT end point
-        end
-    end
-    
+    track_start_times = cell(num_mts,1);
     for mttk = 1:num_mts
         ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
         if ~isempty(ftk_on_mt)
@@ -369,6 +424,19 @@ if zplot ~= 0
 
                 plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
                 %plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
+            
+                %landing rate with time
+                track_start_times{mttk} = [track_start_times{mttk}; traj(ftk_on_mt(j)).frames(1)*exp_time]; %[s]
+                
+%                 figure,trackstarts=gcf; %initialize figure
+%                 [tkstart_n, tkstart_edges]=histcounts(cum_run_length, 'BinWidth', tkstart_binwidth, 'Normalization', 'pdf');
+%                 nhist_tkstart=tkstart_n;
+%                 xhist_tkstart=tkstart_edges+(tkstart_binwidth/2);
+%                 xhist_tkstart(end)=[];
+%                 figure(trackstarts), hold on
+%                 bar(xhist_tkstart,nhist_tkstart)
+%                 xlabel('Time of landing (s)'), ylabel('Probability density'), title([motor,' ', mt_type,' Track start times for MT number ', num2str(mttk)])
+%                 
             end
             xlabel('time (s)'), ylabel('position along MT (nm)'), title(['Kymographs for MT number ', num2str(mttk), ' (MT length ', num2str(mt_length), 'nm)'])
             xlim([0 num_frames*exp_time])%, ylim([0 mt_length])
@@ -412,5 +480,5 @@ if zsave ~= 0
     % save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
-    save([save_dirname,save_filename],'mts','interp_mts','traj','cum_run_length','cum_censored')
+    save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time')
 end

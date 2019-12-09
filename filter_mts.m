@@ -5,7 +5,7 @@
 % input: Cell with columns %1=id %2=roi_name %3=x %4=y, filtering options, pixel size
 % output: Filtered cell where each mt{i} is an array with columns %1=x %2=y corresponding to one mt that meets the criteria (e.g. does not cross another mt, etc.)
 
-function [mts, interp_mts, cross_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, pixel_size, num_pix_x, num_pix_y, zplot)
+function [mts, interp_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, pixel_size, num_pix_x, num_pix_y, zplot)
 
 % initialize figure if plotting
 if zplot ~= 0
@@ -62,10 +62,13 @@ for i = 1:num_mts
     %interpolate MT coordinates
     x_interp = temp_mts{i}(1,1):10:temp_mts{i}(end,1);
     interp_mts{i} = [];
-    interp_mts{i}(:,1)=interp1(temp_mts{i}(uni_ind,1),temp_mts{i}(uni_ind,1),x_interp,'linear','extrap'); %interpolated x coordinates of MT
-    interp_mts{i}(:,2)=interp1(temp_mts{i}(uni_ind,1),temp_mts{i}(uni_ind,2),x_interp,'linear','extrap'); %interpolated y coordinates of MT
+    if skip_mts(i) == 0
+        interp_mts{i}(:,1)=interp1(temp_mts{i}(uni_ind,1),temp_mts{i}(uni_ind,1),x_interp,'linear','extrap'); %interpolated x coordinates of MT
+        interp_mts{i}(:,2)=interp1(temp_mts{i}(uni_ind,1),temp_mts{i}(uni_ind,2),x_interp,'linear','extrap'); %interpolated y coordinates of MT
+    else
+        interp_mts{i} = temp_mts{i};
+    end
     interp_mtcoords = [interp_mtcoords;interp_mts{i}]; %accumulates all MT coordinates
-    
 end
 
 if filt_cross ~= 0 %filter out MTs that are near other MTs
@@ -83,8 +86,8 @@ if filt_cross ~= 0 %filter out MTs that are near other MTs
         if ~isempty(points_near_diff_mt)
             mt_near_diff_mt{i} = [mt_kq(points_near_diff_mt,1),mt_kq(points_near_diff_mt,2)];
             all_mt_near_diff_mt = [all_mt_near_diff_mt; mt_near_diff_mt{i}];
-            skip_mts(i) = 1;
-            %cross_mts(i) = 1;
+            %skip_mts(i) = 1;
+            cross_mts(i) = 1;
         end
     end
 end
@@ -109,8 +112,8 @@ end
 % cross_mts(mts_to_skip) = [];
 
 mts = temp_mts;
-cross_mts = skip_mts;
-
-
+skip_mts = skip_mts + cross_mts;
+skip_mts = skip_mts~=0;
+% cross_mts = skip_mts;
 
 end

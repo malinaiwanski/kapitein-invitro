@@ -13,7 +13,11 @@
 % .mat file output by post_particle_tracking_1
 %
 % Ensure that tMSD_2D.m and MSD_2D.m are in the same folder as this code.
-%
+
+clear all, close all
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro')
+set(0,'DefaultFigureWindowStyle','docked')
+
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 0;
 zsave = 0;
@@ -33,18 +37,15 @@ msd_step = 0.3; %minimum threshold for findchangepts function; minimum improveme
 l_min = 3; %minimum distance between two changepoints - smallest duration of pause/run
 
 % For plotting:
-rl_binwidth = 100; %bin width for run length histograms
+rl_binwidth = 200; %bin width for run length histograms
+vel_binwidth = 200; %bin width for velocity histograms
+time_binwidth = 0.5; %bin width for association time histograms
+loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = 'kif1a';
-mt_type = '1cycle_cpp';
-date = ['2019-10-30']; %, '2019-11-12'];
-
-%% Load data
-dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-% dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
-
-% Read in
+motor = {'kif1a','kif5b'};
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'};
+date = {'2019-10-30'}; %, '2019-11-12'};
 
 %% Initialize figures
 if zplot ~= 0
@@ -52,8 +53,217 @@ if zplot ~= 0
 end
 %% Initialize variables
 
+%% Load data
+dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+% dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+filename_start = 'post_particle_tracking';
+
+num_cat = size(motor,2)*size(mt_type,2);
+catk = 0;
+
+for mk = 1:size(motor,2)
+    for mtk = 1:size(mt_type,2)
+        catk = catk+1;
+        
+        datcat(catk).name = strcat(string(motor(mk)),'_',string(mt_type(mtk)));
+        %traj_files = dir(fullfile(dirname,[filename_start,'*',motor(mk),'_',mt_type(mtk),'*.mat']));
+        traj_files = dir(fullfile(dirname,strcat('*',datcat(catk).name,'*.mat')));
+        
+        disp('------------Analyzing------------')
+        disp(strcat('category: ',num2str(catk)))
+        disp(strcat('motor: ',string(motor(mk))))
+        disp(strcat('mt_type: ',string(mt_type(mtk))))
+        disp(strcat('number of movies: ',num2str(numel(traj_files))))
+        disp('---------------------------------')
+        
+        
+        %% initialize variables
+        datcat(catk).cum_run_length = [];
+        datcat(catk).cum_association_time = [];
+        datcat(catk).cum_censored = [];
+        datcat(catk).cum_mean_vel = [];
+        datcat(catk).cum_inst_vel = [];
+        datcat(catk).cum_proc_vel = [];
+        datcat(catk).cum_loc_alpha = [];
+        
+        datcat(catk).traj = {};
+        datcat(catk).mt_id = {};
+        datcat(catk).mts = {};
+        datcat(catk).interp_mts = {};
+        datcat(catk).inst_vel = {};
+        datcat(catk).proc_vel = {};
+        datcat(catk).loc_alpha = {};
+        
+        %% read in .mat file from each movie
+        for movk = 1:numel(traj_files)
+            %read in file
+            datmovk = load(fullfile(dirname,traj_files(movk).name));
+
+            if numel(datmovk.cum_run_length) ~= numel(datmovk.traj)
+                disp('ERROR: Data mismatch - try re-running post_particle_tracking_1')
+            end
+            
+            %save data
+            datcat(catk).traj{movk} = datmovk.traj;
+            datcat(catk).mt_id{movk} = datmovk.traj.mt;
+            datcat(catk).mts{movk} = datmovk.mts;
+            datcat(catk).interp_mts{movk} = datmovk.interp_mts;
+            
+            datcat(catk).inst_vel{movk} = datmovk.traj.inst_vel;
+            datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
+            % datcat(catk).loc_alpha{movk} = datmovk.traj.loc_alpha;
+            
+            datcat(catk).cum_run_length = [datcat(catk).cum_run_length; datmovk.cum_run_length];
+            datcat(catk).cum_censored = [datcat(catk).cum_censored; datmovk.cum_censored];
+            datcat(catk).cum_association_time = [datcat(catk).cum_association_time; datmovk.cum_association_time];
+            datcat(catk).cum_mean_vel = [datcat(catk).cum_mean_vel; datmovk.cum_mean_vel];
+            datcat(catk).cum_inst_vel = [datcat(catk).cum_inst_vel, datmovk.cum_inst_vel]; %traj.inst_vel];
+            datcat(catk).cum_proc_vel = [datcat(catk).cum_proc_vel, datmovk.cum_proc_vel]; %traj.proc_vel];
+            datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
+        end
+        
+        if isempty(datcat(catk).cum_run_length) == 1
+            continue
+        end
+        %% Analyze
+        
+        %% Plot
+        
+        %run length
+        figure,totrl=gcf; %initialize figure
+        [trl_n, trl_edges]=histcounts(datcat(catk).cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'pdf');
+        nhist_trl=trl_n;
+        xhist_trl=trl_edges+(rl_binwidth/2);
+        xhist_trl(end)=[]; 
+        figure(totrl), hold on 
+        bar(xhist_trl,nhist_trl)
+        xlabel('Total run length (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Total run length histogram'])
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [2000];
+        loL = [300];
+        upL = [5000];
+        [estimRL, pciRL] = mle(datcat(catk).cum_run_length(datcat(catk).cum_run_length>700),'Distribution','exponential','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %'Censoring',datcat(catk).cum_censored(datcat(catk).cum_run_length>700)
+        %plot fit
+        yRL = exppdf(xhist_trl, estimRL);
+        yRLlo = exppdf(xhist_trl, pciRL(1));
+        yRLhi = exppdf(xhist_trl, pciRL(2));
+        plot(xhist_trl,1.0.*yRL,'r-');
+        plot(xhist_trl,1.0.*yRLlo,'r.');
+        plot(xhist_trl,1.0.*yRLhi,'r.');
+        hold off
+        
+        %mean velocity
+        figure,totuvel=gcf; %initialize figure
+        [uvel_n, uvel_edges]=histcounts(datcat(catk).cum_mean_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_uvel=uvel_n;
+        xhist_uvel=uvel_edges+(vel_binwidth/2);
+        xhist_uvel(end)=[]; 
+        figure(totuvel), hold on 
+        bar(xhist_uvel,nhist_uvel)
+        xlabel('Mean velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Mean velocity histogram'])
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [200, 200];
+        loL = [0, 0];
+        upL = [1000, 1000];
+        [estimuV, pciuV] = mle(datcat(catk).cum_mean_vel,'Distribution','normal','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+        %plot fit
+        yuV = normpdf(xhist_uvel, estimuV(1), estimuV(2));
+        yuVlo = normpdf(xhist_uvel, pciuV(1,1), pciuV(1,2));
+        yuVhi = normpdf(xhist_uvel, pciuV(2,1), pciuV(2,2));
+        plot(xhist_uvel,1.0.*yuV,'r-');
+        plot(xhist_uvel,1.0.*yuVlo,'r.');
+        plot(xhist_uvel,1.0.*yuVhi,'r.');
+        hold off
+
+        %association time
+        figure,boundtime=gcf; %initialize figure
+        [bt_n, bt_edges]=histcounts(datcat(catk).cum_association_time, 'BinWidth', time_binwidth, 'Normalization', 'pdf');
+        nhist_bt=bt_n;
+        xhist_bt=bt_edges+(time_binwidth/2);
+        xhist_bt(end)=[]; 
+        figure(boundtime), hold on 
+        bar(xhist_bt,nhist_bt)
+        xlabel('Association time (s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Track duration histogram'])
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [5];
+        loL = [1];
+        upL = [50];
+        [estimbt, pcibt] = mle(datcat(catk).cum_association_time,'Distribution','exponential','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %'Censoring',datcat(catk).cum_censored,
+        %plot fit
+        ybt = exppdf(xhist_bt, estimbt);
+        ybtlo = exppdf(xhist_bt, pcibt(1));
+        ybthi = exppdf(xhist_bt, pcibt(2));
+        plot(xhist_bt,1.0.*ybt,'r-');
+        plot(xhist_bt,1.0.*ybtlo,'r.');
+        plot(xhist_bt,1.0.*ybthi,'r.');
+        hold off
+        
+        %local alpha-value
+        figure,localalpha=gcf; %initialize figure
+        [loca_n, loca_edges]=histcounts(datcat(catk).cum_loc_alpha, 'BinWidth', loca_binwidth, 'Normalization', 'pdf');
+        nhist_loca=loca_n;
+        xhist_loca=loca_edges+(loca_binwidth/2);
+        xhist_loca(end)=[]; 
+        opt = statset('MaxIter',1e5,'Display','iter','TolFun',1e-20);
+        sigmastart = cat(3, 0.01, 0.4);
+        p0 = struct('mu', [0; 2], 'Sigma', sigmastart, 'ComponentProportion', [0.5; 0.5]);
+        gmm_loc_alpha = fitgmdist(datcat(catk).cum_loc_alpha, 2, 'start', p0, 'options', opt); %
+        y_loca = pdf(gmm_loc_alpha,xhist_loca');
+        figure(localalpha), hold on 
+        bar(xhist_loca,nhist_loca)
+        plot(xhist_loca,y_loca,'-')
+        xlabel('Local alpha-value'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Local alpha-value histogram'])
+        hold off
+        
+        %instantaneous velocity
+        figure,instvel=gcf; %initialize figure
+        [instvel_n, instvel_edges]=histcounts(datcat(catk).cum_inst_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_instvel=instvel_n;
+        xhist_instvel=instvel_edges+(vel_binwidth/2);
+        xhist_instvel(end)=[]; 
+        opt = statset('MaxIter',1e5,'Display','iter','TolFun',1e-20);
+        sigmastart = cat(3, 0.1, 0.1);
+        p0 = struct('mu', [0; 1500], 'Sigma', sigmastart, 'ComponentProportion', [0.2; 0.8]);
+        gmm_inst_vel = fitgmdist(datcat(catk).cum_inst_vel', 2, 'options', opt); %'start', p0, 
+        y_instvel = pdf(gmm_inst_vel,xhist_instvel');
+        figure(instvel), hold on 
+        bar(xhist_instvel,nhist_instvel)
+        plot(xhist_instvel,y_instvel,'-')
+        xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous velocity histogram'])
+        hold off
+        
+        %instantaneous processive velocity
+        figure,procvel=gcf; %initialize figure
+        [procvel_n, procvel_edges]=histcounts(datcat(catk).cum_proc_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_procvel=procvel_n;
+        xhist_procvel=procvel_edges+(vel_binwidth/2);
+        xhist_procvel(end)=[]; 
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [200, 200];
+        loL = [0, 0];
+        upL = [1000, 1000];
+        [estimprocV, pciprocV] = mle(datcat(catk).cum_proc_vel,'Distribution','normal','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+        figure(procvel), hold on 
+        bar(xhist_procvel,nhist_procvel)
+        xlabel('Processive velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Processive velocity histogram'])
+        yprocV = normpdf(xhist_procvel, estimprocV(1), estimprocV(2));
+        yprocVlo = normpdf(xhist_procvel, pciprocV(1,1), pciprocV(1,2));
+        yprocVhi = normpdf(xhist_procvel, pciprocV(2,1), pciprocV(2,2));
+        plot(xhist_procvel,1.0.*yprocV,'r-');
+        plot(xhist_procvel,1.0.*yprocVlo,'r.');
+        plot(xhist_procvel,1.0.*yprocVhi,'r.');
+        hold off
+        
+    end
+end
 
 %% Analyze
+
+
 
 
 %% Save data

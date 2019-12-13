@@ -1,4 +1,4 @@
-%% UU - Kapitein Lab
+%% UU - Kapitein Lab_
 % Analyze in vitro single molecule motility assays
 % MKI and CC 2019-11-05
 
@@ -78,6 +78,16 @@ for mk = 1:size(motor,2)
         
         
         %% initialize variables
+        datcat(catk).traj = {};
+        datcat(catk).mt_id = {};
+        datcat(catk).mts = {};
+        datcat(catk).interp_mts = {};
+        datcat(catk).inst_vel = {};
+        datcat(catk).proc_vel = {};
+        %datcat(catk).loc_alpha = {};
+        %datcat(catk).pos_on_mt = {};
+        datcat(catk).track_start_times = {};
+        
         datcat(catk).cum_run_length = [];
         datcat(catk).cum_association_time = [];
         datcat(catk).cum_censored = [];
@@ -85,14 +95,8 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_inst_vel = [];
         datcat(catk).cum_proc_vel = [];
         datcat(catk).cum_loc_alpha = [];
-        
-        datcat(catk).traj = {};
-        datcat(catk).mt_id = {};
-        datcat(catk).mts = {};
-        datcat(catk).interp_mts = {};
-        datcat(catk).inst_vel = {};
-        datcat(catk).proc_vel = {};
-        datcat(catk).loc_alpha = {};
+        datcat(catk).cum_norm_landing_pos = [];
+        datcat(catk).cum_landing_dist_to_mt_end = [];
         
         %% read in .mat file from each movie
         for movk = 1:numel(traj_files)
@@ -113,6 +117,9 @@ for mk = 1:size(motor,2)
             datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
             % datcat(catk).loc_alpha{movk} = datmovk.traj.loc_alpha;
             
+            %datcat(catk).pos_on_mt{movk} = datmovk.traj.position_on_mt;
+            datcat(catk).track_start_times{movk} = datmovk.track_start_times;
+            
             datcat(catk).cum_run_length = [datcat(catk).cum_run_length; datmovk.cum_run_length];
             datcat(catk).cum_censored = [datcat(catk).cum_censored; datmovk.cum_censored];
             datcat(catk).cum_association_time = [datcat(catk).cum_association_time; datmovk.cum_association_time];
@@ -120,12 +127,15 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_inst_vel = [datcat(catk).cum_inst_vel, datmovk.cum_inst_vel]; %traj.inst_vel];
             datcat(catk).cum_proc_vel = [datcat(catk).cum_proc_vel, datmovk.cum_proc_vel]; %traj.proc_vel];
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
+            datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
+            datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
         end
         
         if isempty(datcat(catk).cum_run_length) == 1
             continue
         end
         %% Analyze
+        
         
         %% Plot
         
@@ -257,6 +267,44 @@ for mk = 1:size(motor,2)
         plot(xhist_procvel,1.0.*yprocVlo,'r.');
         plot(xhist_procvel,1.0.*yprocVhi,'r.');
         hold off
+        
+        % landing position along MT
+        figure,landpos = gcf;
+        [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 500, 'Normalization', 'pdf');
+        nhist_landpos=landpos_n;
+        xhist_landpos=landpos_edges+(500/2);
+        xhist_landpos(end)=[]; 
+        figure(landpos), hold on 
+        bar(xhist_landpos,nhist_landpos)
+        xlabel('Landing distance to MT plus-end (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Landing distance from MT plus-end'])
+        hold off
+        
+        % landing time on given MT
+        figure, landtime = gcf;
+        figure(landtime), hold on
+        num_mov = size(datcat(catk).track_start_times,2);
+        mtnum = 0;
+        for movj = 1:num_mov
+            num_mt_mov = size(datcat(catk).track_start_times{1,movj},1);
+            for mtj = 1:num_mt_mov
+                mtnum = mtnum+1;
+                num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)))
+            end 
+        end
+        
+%         failed = lifetimes(find(censored==0));
+%         nfailed = size(failed);
+%         survived = lifetimes(find(censored~=0));
+%         nsurvived = size(survived);
+%         frac_survive = nsurvived/(nfailed+nsurvived); %proportion of censored data
+% 
+%         figure, hold on %plot observed cluster persistence times
+%         plot([zeros(nsurvived),survived]', repmat(1:nsurvived,2,1),'Color','b','LineStyle','-') %censored times in blue
+%         plot([zeros(nfailed),failed]', repmat(nsurvived+1:nsurvived+nfailed,2,1),'Color','r','LineStyle','-') %others in red
+%         xlabel('Survival time'); ylabel('Observation number')
+%         hold off
+
         
     end
 end

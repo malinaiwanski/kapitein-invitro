@@ -1,4 +1,4 @@
-%% UU - Kapitein Lab
+%% UU - Kapitein Lab_
 % Analyze in vitro single molecule motility assays
 % MKI and CC 2019-11-05
 
@@ -78,6 +78,16 @@ for mk = 1:size(motor,2)
         
         
         %% initialize variables
+        datcat(catk).traj = {};
+        datcat(catk).mt_id = {};
+        datcat(catk).mts = {};
+        datcat(catk).interp_mts = {};
+        datcat(catk).inst_vel = {};
+        datcat(catk).proc_vel = {};
+        %datcat(catk).loc_alpha = {};
+        %datcat(catk).pos_on_mt = {};
+        datcat(catk).track_start_times = {};
+        
         datcat(catk).cum_run_length = [];
         datcat(catk).cum_association_time = [];
         datcat(catk).cum_censored = [];
@@ -85,14 +95,8 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_inst_vel = [];
         datcat(catk).cum_proc_vel = [];
         datcat(catk).cum_loc_alpha = [];
-        
-        datcat(catk).traj = {};
-        datcat(catk).mt_id = {};
-        datcat(catk).mts = {};
-        datcat(catk).interp_mts = {};
-        datcat(catk).inst_vel = {};
-        datcat(catk).proc_vel = {};
-        datcat(catk).loc_alpha = {};
+        datcat(catk).cum_norm_landing_pos = [];
+        datcat(catk).cum_landing_dist_to_mt_end = [];
         
         %% read in .mat file from each movie
         for movk = 1:numel(traj_files)
@@ -113,6 +117,9 @@ for mk = 1:size(motor,2)
             datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
             % datcat(catk).loc_alpha{movk} = datmovk.traj.loc_alpha;
             
+            %datcat(catk).pos_on_mt{movk} = datmovk.traj.position_on_mt;
+            datcat(catk).track_start_times{movk} = datmovk.track_start_times;
+            
             datcat(catk).cum_run_length = [datcat(catk).cum_run_length; datmovk.cum_run_length];
             datcat(catk).cum_censored = [datcat(catk).cum_censored; datmovk.cum_censored];
             datcat(catk).cum_association_time = [datcat(catk).cum_association_time; datmovk.cum_association_time];
@@ -120,12 +127,15 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_inst_vel = [datcat(catk).cum_inst_vel, datmovk.cum_inst_vel]; %traj.inst_vel];
             datcat(catk).cum_proc_vel = [datcat(catk).cum_proc_vel, datmovk.cum_proc_vel]; %traj.proc_vel];
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
+            datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
+            datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
         end
         
         if isempty(datcat(catk).cum_run_length) == 1
             continue
         end
         %% Analyze
+        
         
         %% Plot
         
@@ -140,17 +150,17 @@ for mk = 1:size(motor,2)
         xlabel('Total run length (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Total run length histogram'])
         opt = statset('mlecustom');
         opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
-        p0 = [1000];
+        p0 = [2000];
         loL = [300];
-        upL = [3000];
-        [estimRL, pciRL] = mle(datcat(catk).cum_run_length,'Distribution','exponential','Censoring',datcat(catk).cum_censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+        upL = [5000];
+        [estimRL, pciRL] = mle(datcat(catk).cum_run_length(datcat(catk).cum_run_length>700),'Distribution','exponential','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %'Censoring',datcat(catk).cum_censored(datcat(catk).cum_run_length>700)
         %plot fit
         yRL = exppdf(xhist_trl, estimRL);
         yRLlo = exppdf(xhist_trl, pciRL(1));
         yRLhi = exppdf(xhist_trl, pciRL(2));
-        %plot(xhist_trl,0.8.*yRL,'r-');
-        %plot(xhist_trl,0.8.*yRLlo,'r.');
-        %plot(xhist_trl,0.8.*yRLhi,'r.');
+        plot(xhist_trl,1.0.*yRL,'r-');
+        plot(xhist_trl,1.0.*yRLlo,'r.');
+        plot(xhist_trl,1.0.*yRLhi,'r.');
         hold off
         
         %mean velocity
@@ -196,9 +206,9 @@ for mk = 1:size(motor,2)
         ybt = exppdf(xhist_bt, estimbt);
         ybtlo = exppdf(xhist_bt, pcibt(1));
         ybthi = exppdf(xhist_bt, pcibt(2));
-        %plot(xhist_bt,1.0.*ybt,'r-');
-        %plot(xhist_bt,1.0.*ybtlo,'r.');
-        %plot(xhist_bt,1.0.*ybthi,'r.');
+        plot(xhist_bt,1.0.*ybt,'r-');
+        plot(xhist_bt,1.0.*ybtlo,'r.');
+        plot(xhist_bt,1.0.*ybthi,'r.');
         hold off
         
         %local alpha-value
@@ -207,11 +217,11 @@ for mk = 1:size(motor,2)
         nhist_loca=loca_n;
         xhist_loca=loca_edges+(loca_binwidth/2);
         xhist_loca(end)=[]; 
-        opt = statset('MaxIter',1e5,'Display','iter','TolFun',10e-20);
-        p0 = struct('mu', [0; 2], 'Sigma', [[0.4, 0; 0; 0.01], 'ComponentProportion', [0.5; 0.5]);
-        gmm_loc_alpha = fitgmdist(datcat(catk).cum_loc_alpha, 2, 'start', p0, 'options', opt);
+        opt = statset('MaxIter',1e5,'Display','iter','TolFun',1e-20);
+        sigmastart = cat(3, 0.01, 0.4);
+        p0 = struct('mu', [0; 2], 'Sigma', sigmastart, 'ComponentProportion', [0.5; 0.5]);
+        gmm_loc_alpha = fitgmdist(datcat(catk).cum_loc_alpha, 2, 'start', p0, 'options', opt); %
         y_loca = pdf(gmm_loc_alpha,xhist_loca');
-        
         figure(localalpha), hold on 
         bar(xhist_loca,nhist_loca)
         plot(xhist_loca,y_loca,'-')
@@ -219,8 +229,83 @@ for mk = 1:size(motor,2)
         hold off
         
         %instantaneous velocity
-        opt = statset('MaxIter',1e5,'Display','iter','TolFun',10e-20);
-        gmm_inst_vel = fitgmdist(datcat(catk).cum_inst_vel',2,'options',opt);
+        figure,instvel=gcf; %initialize figure
+        [instvel_n, instvel_edges]=histcounts(datcat(catk).cum_inst_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_instvel=instvel_n;
+        xhist_instvel=instvel_edges+(vel_binwidth/2);
+        xhist_instvel(end)=[]; 
+        opt = statset('MaxIter',1e5,'Display','iter','TolFun',1e-20);
+        sigmastart = cat(3, 0.1, 0.1);
+        p0 = struct('mu', [0; 1500], 'Sigma', sigmastart, 'ComponentProportion', [0.2; 0.8]);
+        gmm_inst_vel = fitgmdist(datcat(catk).cum_inst_vel', 2, 'options', opt); %'start', p0, 
+        y_instvel = pdf(gmm_inst_vel,xhist_instvel');
+        figure(instvel), hold on 
+        bar(xhist_instvel,nhist_instvel)
+        plot(xhist_instvel,y_instvel,'-')
+        xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous velocity histogram'])
+        hold off
+        
+        %instantaneous processive velocity
+        figure,procvel=gcf; %initialize figure
+        [procvel_n, procvel_edges]=histcounts(datcat(catk).cum_proc_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_procvel=procvel_n;
+        xhist_procvel=procvel_edges+(vel_binwidth/2);
+        xhist_procvel(end)=[]; 
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [200, 200];
+        loL = [0, 0];
+        upL = [1000, 1000];
+        [estimprocV, pciprocV] = mle(datcat(catk).cum_proc_vel,'Distribution','normal','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+        figure(procvel), hold on 
+        bar(xhist_procvel,nhist_procvel)
+        xlabel('Processive velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Processive velocity histogram'])
+        yprocV = normpdf(xhist_procvel, estimprocV(1), estimprocV(2));
+        yprocVlo = normpdf(xhist_procvel, pciprocV(1,1), pciprocV(1,2));
+        yprocVhi = normpdf(xhist_procvel, pciprocV(2,1), pciprocV(2,2));
+        plot(xhist_procvel,1.0.*yprocV,'r-');
+        plot(xhist_procvel,1.0.*yprocVlo,'r.');
+        plot(xhist_procvel,1.0.*yprocVhi,'r.');
+        hold off
+        
+        % landing position along MT
+        figure,landpos = gcf;
+        [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 500, 'Normalization', 'pdf');
+        nhist_landpos=landpos_n;
+        xhist_landpos=landpos_edges+(500/2);
+        xhist_landpos(end)=[]; 
+        figure(landpos), hold on 
+        bar(xhist_landpos,nhist_landpos)
+        xlabel('Landing distance to MT plus-end (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Landing distance from MT plus-end'])
+        hold off
+        
+        % landing time on given MT
+        figure, landtime = gcf;
+        figure(landtime), hold on
+        num_mov = size(datcat(catk).track_start_times,2);
+        mtnum = 0;
+        for movj = 1:num_mov
+            num_mt_mov = size(datcat(catk).track_start_times{1,movj},1);
+            for mtj = 1:num_mt_mov
+                mtnum = mtnum+1;
+                num_tracks_mt = size(datcat(catk).track_start_times{1,movj}(mtj,1),1);
+                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)))
+            end 
+        end
+        
+%         failed = lifetimes(find(censored==0));
+%         nfailed = size(failed);
+%         survived = lifetimes(find(censored~=0));
+%         nsurvived = size(survived);
+%         frac_survive = nsurvived/(nfailed+nsurvived); %proportion of censored data
+% 
+%         figure, hold on %plot observed cluster persistence times
+%         plot([zeros(nsurvived),survived]', repmat(1:nsurvived,2,1),'Color','b','LineStyle','-') %censored times in blue
+%         plot([zeros(nfailed),failed]', repmat(nsurvived+1:nsurvived+nfailed,2,1),'Color','r','LineStyle','-') %others in red
+%         xlabel('Survival time'); ylabel('Observation number')
+%         hold off
+
+        
     end
 end
 

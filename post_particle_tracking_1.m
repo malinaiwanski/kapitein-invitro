@@ -7,8 +7,8 @@
 %%
 % TO DO:
 % in filter_mts, filter out MTs that run out of edge of FOV
-% sliding MSD: window size and 2D
 % landing rate per MT with time (also for whole MT for whole movie div by L MT and L mov)
+% starting site of run
 
 %% This code reads in output from the DoM Utrecht plug-in for detection and tracking of particles for a single movie.
 % It reads in all the data and re-organizes it into a format used by cumulative_track_analysis_2.
@@ -24,10 +24,11 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 1;
+zplot = 0;
 zsave = 1;
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
+filt_short_mt = 1; %ignore any tracks on MTs that are too short - set this length in the parameters > for analysis section
 filt_rl = 1; %ignore track with a very short displacement (likely static) - set this distance in the parameters > for analysis section
 
 %% Parameters
@@ -45,6 +46,7 @@ end_dist = 200; %maximum distance to first/last point of a MT for a spot localiz
 mt_dist = 400; %maximum distance to some MT for track to considered on a MT and thus analyzed [nm]
 analyze_mt_num = -1; %specify which MT to analyze, based on MT id in text file (these start at 0); if this is -1, all MTs will be analyzed
 mt_cross_dist = 200; %distance between points on two MTs for them to be considered too close/crossing --> filtered out [nm]
+mt_min_length = 1000; %shortest MT to be analyzed, if shorter --> filtered out [nm]
 l_window = 7; %number of frames to average for sliding MSD analysis
 msd_thresh = 1.1; %alpha-value above which is processive, below which is paused
 msd_step = 0.3; %minimum threshold for findchangepts function; minimum improvement in residual error; changepoints currently based on mean values, but can use rms, std, mean and slope
@@ -54,10 +56,10 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
-motor = 'kif1a';
-mt_type = 'gdp_taxol'; %'1cycle_cpp';
+motor = 'kif1a'; %'kif5b'; %'kif1a';
+mt_type = '2cycle_cpp'; %'gdp_taxol'; %'1cycle_cpp'; %
 date = '2019-10-30';
-filenum = 2;
+filenum = 5;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -68,7 +70,7 @@ mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
 fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
 temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
 fclose(fid); 
-[mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, pixel_size, num_pix_x, num_pix_y, zplot);
+[mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot);
 all_interp_mts = [];
 for j = 1: size(interp_mts,1)
     all_interp_mts = [all_interp_mts;interp_mts{j}];
@@ -122,6 +124,8 @@ cum_inst_vel = [];
 cum_loc_alpha = [];
 cum_association_time = [];
 cum_mts = [];
+cum_norm_landing_pos = [];
+cum_landing_dist_to_mt_end = [];
 flip_mt = zeros(1,num_mts);
 no_flip = zeros(1,num_mts);
 ftk = 0; %number of tracks that passes all filtering
@@ -387,7 +391,7 @@ if zplot ~= 0
         figure(kymo_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).position,'.-','Color',cmap(traj(ftk).mt,:)) %plots "kymographs"
         %figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots off-axis "kymographs"
     end
-    
+end    
     track_start_times = cell(num_mts,1);
     for mttk = 1:num_mts
         ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
@@ -405,8 +409,10 @@ if zplot ~= 0
             mt_slope = fit_mt(1);
             mt_yint = fit_mt(2);
             perp_slope = -1/mt_slope;
-
-            figure, hold on
+            
+            if zplot ~= 0
+                figure, hold on
+            end
             for j=1:length(ftk_on_mt)
                 %find closest point along MT to start of track
                 perp_yint_start = -perp_slope*traj(ftk_on_mt(j)).x(1)+traj(ftk_on_mt(j)).y(1);
@@ -421,10 +427,23 @@ if zplot ~= 0
                 dist_to_start = sqrt((mt_ends(1,1) - x_intersect_start).^2+(mt_ends(1,2) - y_intersect_start).^2); %distance from start of MT to start of track
                 dist_to_end = sqrt((mt_ends(1,1) - x_intersect_end).^2+(mt_ends(1,2) - y_intersect_end).^2); %distance from start of MT to end of track (if this is smaller, MT is the "wrong" way around
                 pos_on_mt = traj(ftk_on_mt(j)).position + dist_to_start;
-
-                plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
-                %plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
-            
+                
+                if zplot ~= 0
+                    plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
+                    %plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
+                end
+                
+                landing_dist_to_mt_end = sqrt((mt_ends(end,1) - x_intersect_start).^2+(mt_ends(end,2) - y_intersect_start).^2); %distance from start of track to end of MT
+                normalized_landing_pos = dist_to_start/mt_length;
+                
+                %save position on MT and landing info
+                traj(ftk_on_mt(j)).position_on_mt = pos_on_mt;
+                traj(ftk_on_mt(j)).normalized_pos_on_mt = pos_on_mt./mt_length;
+                %traj(ftk_on_mt(j)).normalized_landing_pos = normalized_landing_pos;
+                %traj(ftk_on_mt(j)).landing_dist_to_mt_end = landing_dist_to_mt_end;  
+                cum_norm_landing_pos = [cum_norm_landing_pos; normalized_landing_pos];
+                cum_landing_dist_to_mt_end = [cum_landing_dist_to_mt_end; landing_dist_to_mt_end];
+                
                 %landing rate with time
                 track_start_times{mttk} = [track_start_times{mttk}; traj(ftk_on_mt(j)).frames(1)*exp_time]; %[s]
                 
@@ -438,40 +457,41 @@ if zplot ~= 0
 %                 xlabel('Time of landing (s)'), ylabel('Probability density'), title([motor,' ', mt_type,' Track start times for MT number ', num2str(mttk)])
 %                 
             end
-            xlabel('time (s)'), ylabel('position along MT (nm)'), title(['Kymographs for MT number ', num2str(mttk), ' (MT length ', num2str(mt_length), 'nm)'])
-            xlim([0 num_frames*exp_time])%, ylim([0 mt_length])
-            hold off
+            if zplot ~= 0
+                xlabel('time (s)'), ylabel('position along MT (nm)'), title(['Kymographs for MT number ', num2str(mttk), ' (MT length ', num2str(mt_length), 'nm)'])
+                xlim([0 num_frames*exp_time])%, ylim([0 mt_length])
+                hold off
+            end
         end
     end
-end
+% end
 
 
 %% Plot parameters to check data
 if zplot ~=0
-    figure,totrl=gcf; %initialize figure
-    [trl_n, trl_edges]=histcounts(cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'pdf');
-    nhist_trl=trl_n;
-    xhist_trl=trl_edges+(rl_binwidth/2);
-    xhist_trl(end)=[]; 
-    figure(totrl), hold on 
-    bar(xhist_trl,nhist_trl)
-    xlabel('Total run length (nm)'), ylabel('Probability density'), title([motor,' ', mt_type,' Total run length histogram'])
-    opt = statset('mlecustom');
-    opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
-    p0 = [1000];
-    loL = [300];
-    upL = [3000];
-    [estimRL, pciRL] = mle(cum_run_length,'Distribution','exponential','Censoring',censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
-    %plot fit
-    yRL = exppdf(xhist_trl, estimRL);
-    yRLlo = exppdf(xhist_trl, pciRL(1));
-    yRLhi = exppdf(xhist_trl, pciRL(2));
-    plot(xhist_trl,0.8.*yRL,'r-');
-    plot(xhist_trl,0.8.*yRLlo,'r.');
-    plot(xhist_trl,0.8.*yRLhi,'r.');
-    hold off
+%     figure,totrl=gcf; %initialize figure
+%     [trl_n, trl_edges]=histcounts(cum_run_length, 'BinWidth', rl_binwidth, 'Normalization', 'pdf');
+%     nhist_trl=trl_n;
+%     xhist_trl=trl_edges+(rl_binwidth/2);
+%     xhist_trl(end)=[]; 
+%     figure(totrl), hold on 
+%     bar(xhist_trl,nhist_trl)
+%     xlabel('Total run length (nm)'), ylabel('Probability density'), title([motor,' ', mt_type,' Total run length histogram'])
+%     opt = statset('mlecustom');
+%     opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+%     p0 = [1000];
+%     loL = [300];
+%     upL = [3000];
+%     [estimRL, pciRL] = mle(cum_run_length,'Distribution','exponential','Censoring',censored,'start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+%     %plot fit
+%     yRL = exppdf(xhist_trl, estimRL);
+%     yRLlo = exppdf(xhist_trl, pciRL(1));
+%     yRLhi = exppdf(xhist_trl, pciRL(2));
+%     plot(xhist_trl,0.8.*yRL,'r-');
+%     plot(xhist_trl,0.8.*yRLlo,'r.');
+%     plot(xhist_trl,0.8.*yRLhi,'r.');
+%     hold off
 
-    
 end
 
 %% Save data
@@ -480,5 +500,5 @@ if zsave ~= 0
     % save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
-    save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time')
+    save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end')
 end

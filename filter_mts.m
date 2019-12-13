@@ -5,7 +5,7 @@
 % input: Cell with columns %1=id %2=roi_name %3=x %4=y, filtering options, pixel size
 % output: Filtered cell where each mt{i} is an array with columns %1=x %2=y corresponding to one mt that meets the criteria (e.g. does not cross another mt, etc.)
 
-function [mts, interp_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, pixel_size, num_pix_x, num_pix_y, zplot)
+function [mts, interp_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, filt_short, min_length, pixel_size, num_pix_x, num_pix_y, zplot)
 
 % initialize figure if plotting
 if zplot ~= 0
@@ -71,7 +71,18 @@ for i = 1:num_mts
     interp_mtcoords = [interp_mtcoords;interp_mts{i}]; %accumulates all MT coordinates
 end
 
-if filt_cross ~= 0 %filter out MTs that are near other MTs
+%FILTER: skip MTs that are too short
+if filt_short ~= 0
+    for i = 1:num_mts
+        mt_length = sum(sqrt(temp_mts{i}(:,1).^2 + temp_mts{i}(:,2).^2));
+        if mt_length < min_length
+            cross_mts(i) = 1;
+        end
+    end
+end
+
+%FILTER: skip MTs that are near other MTs
+if filt_cross ~= 0 
     for i = 1:num_mts
     %find points very close (defined by <= cross_dist) to other MTs (i.e. regions of MT overlap)
         mt_kq =[interp_mts{i}(:,1),interp_mts{i}(:,2)];

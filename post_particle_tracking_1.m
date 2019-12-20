@@ -56,8 +56,8 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
-motor = 'kif1a'; %'kif5b'; %'kif1a';
-mt_type = '2cycle_cpp'; %'gdp_taxol'; %'1cycle_cpp'; %
+motor = 'kif5b'; %'kif1a'; %
+mt_type = '1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
 date = '2019-10-30';
 filenum = 5;
 

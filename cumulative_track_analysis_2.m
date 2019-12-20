@@ -38,7 +38,7 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 
 % For plotting:
 rl_binwidth = 200; %bin width for run length histograms
-vel_binwidth = 200; %bin width for velocity histograms
+vel_binwidth = 100; %bin width for velocity histograms
 time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
@@ -97,6 +97,8 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_loc_alpha = [];
         datcat(catk).cum_norm_landing_pos = [];
         datcat(catk).cum_landing_dist_to_mt_end = [];
+        
+        cum_time_bw_landing = [];
         
         %% read in .mat file from each movie
         for movk = 1:numel(traj_files)
@@ -289,9 +291,65 @@ for mk = 1:size(motor,2)
             for mtj = 1:num_mt_mov
                 mtnum = mtnum+1;
                 num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
-                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)))
+                cmap = colormap(parula(num_mov));
+                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),25,cmap(movj,:),'filled')
+
             end 
         end
+        
+        figure, timebwland = gcf;
+        figure(timebwland), hold on
+        num_mov = size(datcat(catk).track_start_times,2);
+        mtnum = 0;
+        for movj = 1:num_mov
+            num_mt_mov = size(datcat(catk).track_start_times{1,movj},1);
+            for mtj = 1:num_mt_mov
+                mtnum = mtnum+1;
+                num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+                
+                time_bw_landing = diff(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)));
+                cum_time_bw_landing = [cum_time_bw_landing; time_bw_landing];
+                if numel(time_bw_landing) > 2
+                    [idx,C,sumd] = kmeans(time_bw_landing, 2);
+%                     if C(1) < C(2)
+%                         plot(repmat(1,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'r.','MarkerSize',12)
+%                         hold on
+%                         plot(repmat(1,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'b.','MarkerSize',12)
+%                         %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
+%                         %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
+%                     else
+%                         plot(repmat(1,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'b.','MarkerSize',12)
+%                         hold on
+%                         plot(repmat(1,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'r.','MarkerSize',12)
+%                    
+%                     end
+                    if C(1) < C(2)
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'r.','MarkerSize',12)
+                        hold on
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'b.','MarkerSize',12)
+                        %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
+                        %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
+                    else
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'b.','MarkerSize',12)
+                        hold on
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'r.','MarkerSize',12)
+                   
+                    end
+                    title 'Cluster Assignments and Centroids'
+    %                 hold off
+                end
+            end 
+        end
+        figure,timebwlandhist = gcf;
+        [deltland_n, deltland_edges]=histcounts(cum_time_bw_landing, 'BinWidth', 0.5, 'Normalization', 'pdf');
+        nhist_deltland=deltland_n;
+        xhist_deltland=deltland_edges+(2/2);
+        xhist_deltland(end)=[]; 
+        figure(timebwlandhist), hold on 
+        bar(xhist_deltland,nhist_deltland)
+        xlabel('Time between landing events (s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
+        hold off
+
         
 %         failed = lifetimes(find(censored==0));
 %         nfailed = size(failed);

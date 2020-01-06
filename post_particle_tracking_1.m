@@ -27,7 +27,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
 zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -61,10 +61,10 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
-motor = 'kif5b'; %'kif1a'; %
-mt_type = '1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
-date = '2019-10-30';
-filenum = 5;
+motor = 'kif1a'; %'kif5b'; %
+mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
+date = '2019-11-14'; %'2019-10-30'; %
+filenum = 1;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -91,15 +91,15 @@ if zcap == 1
     fclose(fid); 
     
     %format xy positions
-    temp_caps_id = str2double(mt_data{1,1}(:))+1;
-    temp_caps_x = str2double(mt_data{1,3}(:));
-    temp_caps_y = str2double(mt_data{1,4}(:));
+    temp_caps_id = int2str(str2double(temp_boundary_data{1,1}(:))+1);
+    temp_caps_x = str2double(temp_boundary_data{1,3}(:));
+    temp_caps_y = str2double(temp_boundary_data{1,4}(:));
     
     temp_cap_data = table(temp_caps_x,temp_caps_y,'RowNames',temp_caps_id);
     
     uni_caps = unique(temp_cap_data); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
     
-    caps_id = uni_caps.RowNames;
+    caps_id = str2double(uni_caps.RowNames);
     boundary_data = table2array(uni_caps);
     caps_x = boundary_data(:,1);
     caps_y = boundary_data(:,2);

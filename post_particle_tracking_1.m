@@ -18,18 +18,22 @@
 % To use this file you will need the following files:
 % Results from DoM Utrecht particle localization and tracking (csv; file name must start with DoM)
 % MT x,y positions (csv; file name must start with MT)
+% boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with ) - make sure the ROI ID of the segment boundaries matches that of the MTs (i.e. trace them out in the same order and click t after clicking on the boundaries for each MT
 
 clear all, close all
 addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro')
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 0;
-zsave = 1;
+zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
+zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zcap = 0; %set to 1 if using capped MTs
+
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
 filt_short_mt = 1; %ignore any tracks on MTs that are too short - set this length in the parameters > for analysis section
 filt_rl = 1; %ignore track with a very short displacement (likely static) - set this distance in the parameters > for analysis section
+filt_tk_mt_end = 1; %ignore any tracks that are too close to the end of the MT - set this distance in the parameters > for analysis section (end_dist)
 
 %% Parameters
 % From imaging:
@@ -42,11 +46,12 @@ num_pix_y = 512;
 % For analysis:
 min_duration = 5; %minimum length of track to be analyzed [frames]
 min_rl = 150; %minimum run length of track to be analyzed [nm]
-end_dist = 200; %maximum distance to first/last point of a MT for a spot localization to be considered to be at MT end [nm]
+end_dist = 200; %maximum distance to first/last point of a MT for a spot localization to be considered to be at MT end [nm]; if distance is < this, points in track are marked and track may be ignored if corresponding filtering parameter is set to 1
 mt_dist = 400; %maximum distance to some MT for track to considered on a MT and thus analyzed [nm]
 analyze_mt_num = -1; %specify which MT to analyze, based on MT id in text file (these start at 0); if this is -1, all MTs will be analyzed
 mt_cross_dist = 200; %distance between points on two MTs for them to be considered too close/crossing --> filtered out [nm]
 mt_min_length = 1000; %shortest MT to be analyzed, if shorter --> filtered out [nm]
+segment_boundary_dist = 200; %distance to segment boundary (i.e. between CPP seed - GDP lattice - CPP cap) to decide if/where track crosses such a boundary [nm]
 l_window = 7; %number of frames to average for sliding MSD analysis
 msd_thresh = 1.1; %alpha-value above which is processive, below which is paused
 msd_step = 0.3; %minimum threshold for findchangepts function; minimum improvement in residual error; changepoints currently based on mean values, but can use rms, std, mean and slope
@@ -77,6 +82,40 @@ for j = 1: size(interp_mts,1)
 end
 filt_mt_ind = find(skip_mts);
 num_mts = size(mts,1);
+
+% For capped MTs, read in segment data
+if zcap == 1
+    cap_file = dir(fullfile(dirname,'int*.csv')); %finds appropriate file
+    fid=fopen(fullfile(dirname,cap_file(filenum).name)); %opens the specified file in the list and imports data
+    temp_boundary_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
+    fclose(fid); 
+    
+    %format xy positions
+    temp_caps_id = str2double(mt_data{1,1}(:))+1;
+    temp_caps_x = str2double(mt_data{1,3}(:));
+    temp_caps_y = str2double(mt_data{1,4}(:));
+    
+    temp_cap_data = table(temp_caps_x,temp_caps_y,'RowNames',temp_caps_id);
+    
+    uni_caps = unique(temp_cap_data); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
+    
+    caps_id = uni_caps.RowNames;
+    boundary_data = table2array(uni_caps);
+    caps_x = boundary_data(:,1);
+    caps_y = boundary_data(:,2);
+    
+    num_caps = length(unique(caps_id));
+    if num_caps ~= num_mts
+        disp('ERROR: Data mismatch - retrace MTs and/or MT boundaries')
+    end
+    
+    for i = 1:num_caps
+        cap_id = find(caps_id(:,1)==i,1);
+        cap_l = length(find(caps_id(:,1)==i));
+        segment_boundaries{i} = [caps_x([cap_id:1:cap_id+cap_l-1],1).*pixel_size+1.5*pixel_size, caps_y([cap_id:1:cap_id+cap_l-1],1).*pixel_size+1.5*pixel_size]; %segment boundary position x,y in nm
+        %add one pixel dimension because ImageJ starts at 0, MATLAB at 1; add 0.5 because positions are plotted at the bottom,left of a pixel (??)
+    end
+end
 
 % Read in particle data
 motor_file = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
@@ -239,7 +278,11 @@ for tk = 1:ntracks
     if size(points_mtend{1,1},2) ~= 0 || size(points_mtend{2,1},2) ~= 0 %there are points near at least one of the ends
         ind_mtend = [sort(points_mtend{1,1}), sort(points_mtend{2,1})]; %index of motorsq near MT end
         loc_mtend = [motorsq(ind_mtend,1), motorsq(ind_mtend,2)]; %x,y values of spots in motorsq near MT end
-        cens_tk = 1;
+        if filt_tk_mt_end == 1
+            cens_tk = 1;
+        else
+            cens_tk = 0;
+        end
     else
         ind_mtend = [];
         loc_mtend = [];

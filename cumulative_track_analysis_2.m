@@ -19,7 +19,7 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 0;
+zplot = 1;
 zsave = 0;
 
 %% Parameters
@@ -293,9 +293,11 @@ for mk = 1:size(motor,2)
                 num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
                 cmap = colormap(parula(num_mov));
                 scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),25,cmap(movj,:),'filled')
-
             end 
         end
+        xlabel('MT number'), ylabel('Track start time (s)'), title([motor{mk},' ', mt_type{mtk},' Landing times on each MT'])
+%         xlim([0 mtnum])
+        hold off
         
         figure, timebwland = gcf;
         figure(timebwland), hold on
@@ -335,8 +337,9 @@ for mk = 1:size(motor,2)
                         plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'r.','MarkerSize',12)
                    
                     end
-                    title 'Cluster Assignments and Centroids'
-    %                 hold off
+                    xlabel('MT number'), ylabel('Time between track start events (s)'), title([motor{mk},' ', mt_type{mtk},' Time between start of tracks'])
+                    xlim([0 mtnum])
+                    %hold off
                 end
             end 
         end

@@ -9,6 +9,7 @@
 % in filter_mts, filter out MTs that run out of edge of FOV
 % landing rate per MT with time (also for whole MT for whole movie div by L MT and L mov)
 % starting site of run
+% identify which MT segment boundary is on
 
 %% This code reads in output from the DoM Utrecht plug-in for detection and tracking of particles for a single movie.
 % It reads in all the data and re-organizes it into a format used by cumulative_track_analysis_2.
@@ -63,8 +64,8 @@ rl_binwidth = 100; %bin width for run length histograms
 %% Movie to analyze
 motor = 'kif1a'; %'kif5b'; %
 mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
-date = '2019-11-14'; %'2019-10-30'; %
-filenum = 1;
+date = '2019-12-09'; %'2019-10-30'; %
+filenum = 3;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -84,6 +85,8 @@ filt_mt_ind = find(skip_mts);
 num_mts = size(mts,1);
 
 % For capped MTs, read in segment data
+%%%%%%%%%%%%%%%%%%%%% CHANGE TO FIND MT CLOSEST TO INTERSECTION AND USE
+%%%%%%%%%%%%%%%%%%%%% THAT MT ID
 if zcap == 1
     cap_file = dir(fullfile(dirname,'int*.csv')); %finds appropriate file
     fid=fopen(fullfile(dirname,cap_file(filenum).name)); %opens the specified file in the list and imports data
@@ -91,11 +94,11 @@ if zcap == 1
     fclose(fid); 
     
     %format xy positions
-    temp_caps_id = int2str(str2double(temp_boundary_data{1,1}(:))+1);
+    temp_caps_id = string(str2double(temp_boundary_data{1,1}(:))+1);
     temp_caps_x = str2double(temp_boundary_data{1,3}(:));
     temp_caps_y = str2double(temp_boundary_data{1,4}(:));
     
-    temp_cap_data = table(temp_caps_x,temp_caps_y,'RowNames',temp_caps_id);
+    temp_cap_data = table(temp_caps_x,temp_caps_y,'RowNames',temp_caps_id); %fix this to not use RowNames. Categorical array instead?
     
     uni_caps = unique(temp_cap_data); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
     

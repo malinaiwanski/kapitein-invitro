@@ -19,7 +19,7 @@
 % To use this file you will need the following files:
 % Results from DoM Utrecht particle localization and tracking (csv; file name must start with DoM)
 % MT x,y positions (csv; file name must start with MT)
-% boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with ) - make sure the ROI ID of the segment boundaries matches that of the MTs (i.e. trace them out in the same order and click t after clicking on the boundaries for each MT
+% boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with int)
 
 clear all, close all
 addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro')
@@ -34,7 +34,7 @@ zcap = 1; %set to 1 if using capped MTs
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
 filt_short_mt = 1; %ignore any tracks on MTs that are too short - set this length in the parameters > for analysis section
 filt_rl = 1; %ignore track with a very short displacement (likely static) - set this distance in the parameters > for analysis section
-filt_tk_mt_end = 1; %ignore any tracks that are too close to the end of the MT - set this distance in the parameters > for analysis section (end_dist)
+filt_tk_mt_end = 0; %ignore any tracks that are too close to the end of the MT - set this distance in the parameters > for analysis section (end_dist)
 
 %% Parameters
 % From imaging:
@@ -65,11 +65,11 @@ rl_binwidth = 100; %bin width for run length histograms
 motor = 'kif1a'; %'kif5b'; %
 mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
 date = '2019-12-09'; %'2019-10-30'; %
-filenum = 3;
+filenum = 1;
 
 %% Load data
-dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-% dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
+%dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 % Read in microtubule data
 mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
@@ -85,8 +85,6 @@ filt_mt_ind = find(skip_mts);
 num_mts = size(mts,1);
 
 % For capped MTs, read in segment data
-%%%%%%%%%%%%%%%%%%%%% CHANGE TO FIND MT CLOSEST TO INTERSECTION AND USE
-%%%%%%%%%%%%%%%%%%%%% THAT MT ID
 if zcap == 1
     cap_file = dir(fullfile(dirname,'int*.csv')); %finds appropriate file
     fid=fopen(fullfile(dirname,cap_file(filenum).name)); %opens the specified file in the list and imports data
@@ -94,29 +92,38 @@ if zcap == 1
     fclose(fid); 
     
     %format xy positions
-    temp_caps_id = string(str2double(temp_boundary_data{1,1}(:))+1);
+    %temp_caps_id = string(str2double(temp_boundary_data{1,1}(:))+1);
     temp_caps_x = str2double(temp_boundary_data{1,3}(:));
     temp_caps_y = str2double(temp_boundary_data{1,4}(:));
     
-    temp_cap_data = table(temp_caps_x,temp_caps_y,'RowNames',temp_caps_id); %fix this to not use RowNames. Categorical array instead?
+    temp_cap_data = [temp_caps_x,temp_caps_y];
     
-    uni_caps = unique(temp_cap_data); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
+    uni_caps = unique(temp_cap_data,'rows','stable'); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
     
-    caps_id = str2double(uni_caps.RowNames);
-    boundary_data = table2array(uni_caps);
-    caps_x = boundary_data(:,1);
-    caps_y = boundary_data(:,2);
+    caps_x = uni_caps(:,1).*pixel_size+1.5*pixel_size;
+    caps_y = uni_caps(:,2).*pixel_size+1.5*pixel_size;
+    cap_loc = [caps_x, caps_y];
+    
+    %identify on which MT the identified segment boundary is
+    caps_id = [];
+    segment_boundaries = cell(num_mts,1);
+    for i = 1:length(caps_x)
+        closest_point_on_mt = zeros(num_mts,1);
+        for j = 1:num_mts
+            rep_loc = repmat(cap_loc(i,:),size(interp_mts{j},1),1);
+            diff_loc = interp_mts{j}-rep_loc;
+            cap_mt_dist = vecnorm(diff_loc,2,2);
+            closest_point_on_mt(j) = min(cap_mt_dist);
+        end
+        [minval,closemt] = min(closest_point_on_mt);
+        cap_id = closemt;
+        caps_id = [caps_id, cap_id];
+        segment_boundaries{cap_id} = [segment_boundaries{cap_id};caps_x(i),caps_y(i)];
+    end
     
     num_caps = length(unique(caps_id));
     if num_caps ~= num_mts
         disp('ERROR: Data mismatch - retrace MTs and/or MT boundaries')
-    end
-    
-    for i = 1:num_caps
-        cap_id = find(caps_id(:,1)==i,1);
-        cap_l = length(find(caps_id(:,1)==i));
-        segment_boundaries{i} = [caps_x([cap_id:1:cap_id+cap_l-1],1).*pixel_size+1.5*pixel_size, caps_y([cap_id:1:cap_id+cap_l-1],1).*pixel_size+1.5*pixel_size]; %segment boundary position x,y in nm
-        %add one pixel dimension because ImageJ starts at 0, MATLAB at 1; add 0.5 because positions are plotted at the bottom,left of a pixel (??)
     end
 end
 

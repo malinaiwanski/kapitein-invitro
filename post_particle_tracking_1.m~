@@ -19,10 +19,11 @@
 % To use this file you will need the following files:
 % Results from DoM Utrecht particle localization and tracking (csv; file name must start with DoM)
 % MT x,y positions (csv; file name must start with MT)
-% boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with ) - make sure the ROI ID of the segment boundaries matches that of the MTs (i.e. trace them out in the same order and click t after clicking on the boundaries for each MT
+% boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with int)
 
 clear all, close all
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro')
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
@@ -34,7 +35,7 @@ zcap = 1; %set to 1 if using capped MTs
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
 filt_short_mt = 1; %ignore any tracks on MTs that are too short - set this length in the parameters > for analysis section
 filt_rl = 1; %ignore track with a very short displacement (likely static) - set this distance in the parameters > for analysis section
-filt_tk_mt_end = 1; %ignore any tracks that are too close to the end of the MT - set this distance in the parameters > for analysis section (end_dist)
+filt_tk_mt_end = 0; %ignore any tracks that are too close to the end of the MT - set this distance in the parameters > for analysis section (end_dist)
 
 %% Parameters
 % From imaging:
@@ -92,30 +93,28 @@ if zcap == 1
     fclose(fid); 
     
     %format xy positions
-    %temp_caps_id = string(str2double(temp_boundary_data{1,1}(:))+1);
     temp_caps_x = str2double(temp_boundary_data{1,3}(:));
-    temp_caps_y = str2double(temp_boundary_data{1,4}(:));
+    temp_caps_y = str2double(temp_boundary_data{1,4}(:)); 
     
     temp_cap_data = [temp_caps_x,temp_caps_y];
-    
     uni_caps = unique(temp_cap_data,'rows','stable'); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
     
     caps_x = uni_caps(:,1).*pixel_size+1.5*pixel_size;
     caps_y = uni_caps(:,2).*pixel_size+1.5*pixel_size;
-    cap_loc = [caps_x, caps_x];
+    cap_loc = [caps_x, caps_y];
     
     %identify on which MT the identified segment boundary is
     caps_id = [];
     segment_boundaries = cell(num_mts,1);
     for i = 1:length(caps_x)
-        cap_mt_dist = zeros(num_mts,1);
+        closest_point_on_mt = zeros(num_mts,1);
         for j = 1:num_mts
             rep_loc = repmat(cap_loc(i,:),size(interp_mts{j},1),1);
             diff_loc = interp_mts{j}-rep_loc;
             cap_mt_dist = vecnorm(diff_loc,2,2);
-            closest_point_on_mt = min(cap_mt_dist);
+            closest_point_on_mt(j) = min(cap_mt_dist);
         end
-        
+        [minval,closemt] = min(closest_point_on_mt);
         cap_id = closemt;
         caps_id = [caps_id, cap_id];
         segment_boundaries{cap_id} = [segment_boundaries{cap_id};caps_x(i),caps_y(i)];
@@ -125,6 +124,23 @@ if zcap == 1
     if num_caps ~= num_mts
         disp('ERROR: Data mismatch - retrace MTs and/or MT boundaries')
     end
+    
+    boundaries_on_mt = cell(num_mts,1);
+    for j = 1:num_mts
+        [~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT    
+        fit_mt = polyfit(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+        mt_slope = fit_mt(1);
+        mt_yint = fit_mt(2);
+        perp_slope = -1/mt_slope;
+
+        %find closest point along MT to each segment boundary
+        for i = 1:size(segment_boundaries{j},1)
+            perp_yint_bound = -perp_slope*segment_boundaries{j}(i,1)+segment_boundaries{j}(i,2);
+            x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
+            y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
+            boundaries_on_mt{j} = [boundaries_on_mt{j}; x_intersect_bound, y_intersect_bound];
+        end
+    end
 end
 
 % Read in particle data
@@ -133,6 +149,7 @@ fid=fopen(fullfile(dirname,motor_file(filenum).name)); %opens the specified file
 
 disp('------------Reading in data from file:------------')
 disp(strcat(date,'\',motor,'\',mt_type,'\',motor_file(filenum).name))
+
 %for testing %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % motor_file = dir(fullfile('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\2019-10-30\kif1a\1cycle_cpp','DoM*.csv'));
 % fid=fopen(fullfile(motor_file(1).name));
@@ -337,7 +354,7 @@ for ftk = 1:nfilttracks
     ind_mtend = traj(ftk).ind_mtend;
     ind_alongmt = traj(ftk).ind_alongmt;
     
-    %% project track along MT
+    %% Project track along MT
     %finding MT/norm(MT)
     fit_vector = [];
     motor_vector = [0,0;diff(x_tk),diff(y_tk)];
@@ -377,6 +394,39 @@ for ftk = 1:nfilttracks
 %         figure(kymo_plot), hold on, plot(frame_tk.*exp_time,position,'.-','Color',cmap(tk,:)) %plots "kymographs"
 %     end
     
+    %% Identify which parts of track are on GMP-CPP parts of MT and which are on GDP parts
+    if zcap == 1
+        % closer to mt_coords(1,:) minus or mt_coords(end,:) plus end
+        % use fact that motors move towards plus end
+        % if cross boundary one, first part seed, second part gdp; if cross
+        % boundary two, before on gdp, then on cap
+        
+        % find points in track within segment_boundary_dist of any segment boundary
+        motorsq = [x_tk,y_tk];
+        mtboundsq = boundaries_on_mt{mt_tk};
+        [points_boundary,dist_boundary] = rangesearch(motorsq,mtboundsq,segment_boundary_dist,'Distance','euclidean'); %points within specified nm of MT segment boundary (cell with entry for each boundary); values sorted closest to furthest, use closest as crossing point
+        
+        boundaries_on_mt = cell(num_mts,1);
+        
+        [~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT    
+        fit_mt = polyfit(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+        mt_slope = fit_mt(1);
+        mt_yint = fit_mt(2);
+        perp_slope = -1/mt_slope;
+
+        %find closest point along MT to each segment boundary
+        for i = 1:size(segment_boundaries{j},1)
+            perp_yint_bound = -perp_slope*segment_boundaries{j}(i,1)+segment_boundaries{j}(i,2);
+            x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
+            y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
+            boundaries_on_mt{j} = [boundaries_on_mt{j}; x_intersect_bound, y_intersect_bound];
+        end
+        
+%         gdp_frames =
+%         seed_frames =
+%         cap_frames = 
+    end
+
     %% Sliding MSD analysis
     if length (frame_tk) > l_window + 4
         tmsd_res = tMSD_2D(x_tk,y_tk,frame_tk,l_window,exp_time,msd_thresh, msd_step,l_min);

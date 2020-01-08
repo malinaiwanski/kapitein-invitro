@@ -282,6 +282,17 @@ for mk = 1:size(motor,2)
         xlabel('Landing distance to MT plus-end (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Landing distance from MT plus-end'])
         hold off
         
+        % landing position along MT
+        figure,normlandpos = gcf;
+        [normlandpos_n, normlandpos_edges]=histcounts(datcat(catk).cum_norm_landing_pos, 'BinWidth', 0.1, 'Normalization', 'pdf');
+        nhist_normlandpos=normlandpos_n;
+        xhist_normlandpos=normlandpos_edges+(0.1/2);
+        xhist_normlandpos(end)=[]; 
+        figure(normlandpos), hold on 
+        bar(xhist_normlandpos,nhist_normlandpos)
+        xlabel('Landing position along MT (fraction of 1)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Landing Position'])
+        hold off
+        
         % landing time on given MT
         figure, landtime = gcf;
         figure(landtime), hold on

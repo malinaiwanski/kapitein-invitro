@@ -27,7 +27,7 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
+zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
 zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
 zcap = 1; %set to 1 if using capped MTs
 
@@ -466,7 +466,7 @@ for ftk = 1:nfilttracks
         traj(ftk).proc_vel = proc_vel(1,:);
     end
     
-    cum_run_length = [cum_run_length; abs(position(end))];
+    cum_run_length = [cum_run_length; abs(position(end))]; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     cum_censored = censored;
     cum_mean_vel = [cum_mean_vel; mean_vel];%abs(position(end))/(duration_tk*exp_time)];
     cum_inst_vel = [cum_inst_vel, inst_vel(1,:)];

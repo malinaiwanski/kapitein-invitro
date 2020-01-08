@@ -22,8 +22,8 @@
 % boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with int)
 
 clear all, close all
-%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
@@ -69,8 +69,8 @@ date = '2019-12-09'; %'2019-10-30'; %
 filenum = 1;
 
 %% Load data
-%dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
+dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+%dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 % Read in microtubule data
 mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
@@ -122,23 +122,26 @@ if zcap == 1
     
     num_caps = length(unique(caps_id));
     if num_caps ~= num_mts
-        disp('ERROR: Data mismatch - retrace MTs and/or MT boundaries')
+        disp('ERROR: Data mismatch - retrace MTs and/or MT segment boundaries')
     end
     
     boundaries_on_mt = cell(num_mts,1);
     for j = 1:num_mts
-        [~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT    
-        fit_mt = polyfit(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
-        mt_slope = fit_mt(1);
-        mt_yint = fit_mt(2);
-        perp_slope = -1/mt_slope;
+        %[~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT    
+        %fit_mt = polyfit(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
+        %mt_slope = fit_mt(1);
+        %mt_yint = fit_mt(2);
+        %perp_slope = -1/mt_slope;
 
         %find closest point along MT to each segment boundary
         for i = 1:size(segment_boundaries{j},1)
-            perp_yint_bound = -perp_slope*segment_boundaries{j}(i,1)+segment_boundaries{j}(i,2);
-            x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
-            y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
-            boundaries_on_mt{j} = [boundaries_on_mt{j}; x_intersect_bound, y_intersect_bound];
+            %perp_yint_bound = -perp_slope*segment_boundaries{j}(i,1)+segment_boundaries{j}(i,2);
+            %x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
+            %y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
+            bound_on_mt_y = interp1(interp_mts{j}(:,1),interp_mts{j}(:,2),segment_boundaries{j}(i,1),'nearest','extrap');
+            bound_on_mt_x = interp1(interp_mts{j}(:,2),interp_mts{j}(:,1),segment_boundaries{j}(i,2),'nearest','extrap');
+            boundaries_on_mt{j} = [boundaries_on_mt{j}; bound_on_mt_x, bound_on_mt_y];
+            %boundaries_on_mt{j} = [boundaries_on_mt{j}; x_intersect_bound, y_intersect_bound];
         end
     end
 end
@@ -396,33 +399,22 @@ for ftk = 1:nfilttracks
     
     %% Identify which parts of track are on GMP-CPP parts of MT and which are on GDP parts
     if zcap == 1
-        % closer to mt_coords(1,:) minus or mt_coords(end,:) plus end
-        % use fact that motors move towards plus end
-        % if cross boundary one, first part seed, second part gdp; if cross
-        % boundary two, before on gdp, then on cap
+        %order segment boundaries based on distance from minus-end of MT
+        if ~isempty(boundaries_on_mt{mt_tk})
+            boundsq = boundaries_on_mt{mt_tk};
+            mtendsq = [mt_coords(1,:)]; %minus end
+            [points_mtend,dist_mtend] = rangesearch(boundsq,mtendsq,pixel_size*num_pix_x,'Distance','euclidean'); %points ordered based on distance from MT minus-end
+            boundaries_on_mt_old = boundaries_on_mt;
+            for j=1:size(boundaries_on_mt{mt_tk},1)
+                boundaries_on_mt{mt_tk}(j,:) = boundaries_on_mt_old{mt_tk}(points_mtend{1,1}(j),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
+            end
+        end
         
         % find points in track within segment_boundary_dist of any segment boundary
         motorsq = [x_tk,y_tk];
         mtboundsq = boundaries_on_mt{mt_tk};
         [points_boundary,dist_boundary] = rangesearch(motorsq,mtboundsq,segment_boundary_dist,'Distance','euclidean'); %points within specified nm of MT segment boundary (cell with entry for each boundary); values sorted closest to furthest, use closest as crossing point
-        
-        boundaries_on_mt = cell(num_mts,1);
-        
-        [~,uni_ind] = unique(interp_mts{mt_tk}(:,1),'stable'); %find repeated x-values in MT    
-        fit_mt = polyfit(interp_mts{mt_tk}(uni_ind,1),interp_mts{mt_tk}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
-        mt_slope = fit_mt(1);
-        mt_yint = fit_mt(2);
-        perp_slope = -1/mt_slope;
 
-        %find closest point along MT to each segment boundary
-        for i = 1:size(segment_boundaries{mt_tk},1)
-            perp_yint_bound = -perp_slope*segment_boundaries{mt_tk}(i,1)+segment_boundaries{mt_tk}(i,2);
-            x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
-            y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
-            boundaries_on_mt{mt_tk} = [boundaries_on_mt{mt_tk}; x_intersect_bound, y_intersect_bound];
-        end
-         %%% DIVIDE THE FOV INTO REGIONS AND SEE IF THE TRACK IS PRESENT IN
-         %%% >1 REGION!!!!!!!!!
 %         gdp_frames = 
 %         seed_frames =
 %         cap_frames = 
@@ -600,8 +592,8 @@ end
 
 %% Save data
 if zsave ~= 0
-    %save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-    save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+    save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+    %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
     save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end')

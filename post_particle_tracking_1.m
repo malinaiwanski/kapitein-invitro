@@ -21,9 +21,14 @@
 % MT x,y positions (csv; file name must start with MT)
 % boundaries between different sections of MT - only if zcap == 1 (csv; file name must start with int)
 
+% You will also need to download the following functions:
+% arclength from https://nl.mathworks.com/matlabcentral/fileexchange/34871-arclength
+%interparc from https://nl.mathworks.com/matlabcentral/fileexchange/34874-interparc
+
 clear all, close all
 addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
 %addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
@@ -77,7 +82,13 @@ mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
 fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
 temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
 fclose(fid); 
-[mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot);
+[mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap);
+% if zcap == 1 %most MTs vertical, flip x,y
+%     for i = 1:size(interp_mts,1)
+%         mts{i} = flip(mts{i});
+%         interp_mts{i} = flip(interp_mts{i});
+%     end
+% end
 all_interp_mts = [];
 for j = 1: size(interp_mts,1)
     all_interp_mts = [all_interp_mts;interp_mts{j}];
@@ -95,6 +106,10 @@ if zcap == 1
     %format xy positions
     temp_caps_x = str2double(temp_boundary_data{1,3}(:));
     temp_caps_y = str2double(temp_boundary_data{1,4}(:)); 
+    if zcap == 1 %most MTs vertical, flip x,y
+        temp_caps_x = str2double(temp_boundary_data{1,4}(:));
+        temp_caps_y = str2double(temp_boundary_data{1,3}(:)); 
+    end
     
     temp_cap_data = [temp_caps_x,temp_caps_y];
     uni_caps = unique(temp_cap_data,'rows','stable'); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
@@ -138,8 +153,9 @@ if zcap == 1
             %perp_yint_bound = -perp_slope*segment_boundaries{j}(i,1)+segment_boundaries{j}(i,2);
             %x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
             %y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
-            bound_on_mt_y = interp1(interp_mts{j}(:,1),interp_mts{j}(:,2),segment_boundaries{j}(i,1),'nearest','extrap');
-            bound_on_mt_x = interp1(interp_mts{j}(:,2),interp_mts{j}(:,1),segment_boundaries{j}(i,2),'nearest','extrap');
+            [~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT
+            bound_on_mt_x = interp1(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),segment_boundaries{j}(i,1),'nearest','extrap');
+            bound_on_mt_y = interp1(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,1),segment_boundaries{j}(i,2),'nearest','extrap');
             boundaries_on_mt{j} = [boundaries_on_mt{j}; bound_on_mt_x, bound_on_mt_y];
             %boundaries_on_mt{j} = [boundaries_on_mt{j}; x_intersect_bound, y_intersect_bound];
         end
@@ -166,6 +182,21 @@ for i = 1:size(temp_motor_dat,1)
         motor_dat(i,j) = str2double(temp_motor_dat{i,j});
     end
 end
+
+if zcap == 1
+    old_motor_dat = motor_dat;
+    motor_dat(:,1) = old_motor_dat(:,2);
+    motor_dat(:,2) = old_motor_dat(:,1);
+    motor_dat(:,4) = old_motor_dat(:,6);
+    motor_dat(:,6) = old_motor_dat(:,4);
+    motor_dat(:,5) = old_motor_dat(:,7);
+    motor_dat(:,7) = old_motor_dat(:,5);
+    motor_dat(:,12) = old_motor_dat(:,14);
+    motor_dat(:,14) = old_motor_dat(:,12);
+    motor_dat(:,13) = old_motor_dat(:,15);
+    motor_dat(:,15) = old_motor_dat(:,13);
+end
+
 % array of doubles with columns: %1=x[px] %2=y[px] %3=frame_num %4=x[nm] %5=x_loc_error[nm] %6=y[nm] %7=y_loc_error[nm] %8=amplitude_fit %9=amplitude_error %10=BG_fit %11=BG_error %12=sd_x[nm] %13=sd_x_error[nm] %14=sd_y[nm] %15=sd_y_error[nm] %16=false_positive %17=integrated_intens %18=SNR %19=R2_fit %20=track_ID %21=particle_ID %22=track_length
 ntracks = motor_dat(end,20); %number of tracks
 % cmap = colormap(parula(num_mts));
@@ -261,7 +292,7 @@ for tk = 1:ntracks
             mt_error = zeros(nnz(near_mts),1); %vector to store errors
             for j = 1:nnz(near_mts)
                 [~,uni_ind] = unique(interp_mts{mt_id(j)}(:,1),'stable'); %find repeated x-values in MT
-                uni_ind = sort(uni_ind);
+                %uni_ind = sort(uni_ind);
                 fit_mt = polyfit(interp_mts{mt_id(j)}(uni_ind,1),interp_mts{mt_id(j)}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
                 interp_mt_for_motor = polyval(fit_mt,x_tk);
                 mt_error(j,1) = sum(abs(y_tk - interp_mt_for_motor));
@@ -363,11 +394,83 @@ for ftk = 1:nfilttracks
     motor_vector = [0,0;diff(x_tk),diff(y_tk)];
     mt_vector = [0,0;diff(mt_coords)];
     
-%     if flip_mt(mt_tk)  > no_flip(mt_tk) %~= 0
-%         motor_vector = motor_vector*-1;
-%         mt_vector = mt_vector*-1;
-%     end
-    
+    % find between which two points on MT track starts
+    tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2),'spline');
+    [nearpoints_mt,dist_nearpoints] = rangesearch(mt_coords,[x_tk(1,1),y_tk(1,1)],5000,'Distance','euclidean','SortIndices',1); %find nearby points on MT
+    closest_mtpoint_ind = nearpoints_mt{1,1}(1);
+    closest_mtpoint = mt_coords(closest_mtpoint_ind,:);
+    if closest_mtpoint_ind == 1
+        pp = 0;
+        s1_mt = closest_mtpoint_ind;
+        s2_mt = closest_mtpoint_ind +1;
+    elseif closest_mtpoint_ind == size(mt_coords,1)
+        pp = 0;
+        s1_mt = closest_mtpoint_ind - 1;
+        s2_mt = closest_mtpoint_ind;
+    else
+        pp = 1;
+        prev_mtpoint = mt_coords(closest_mtpoint_ind-1,:);
+        succ_mtpoint = mt_coords(closest_mtpoint_ind+1,:);
+        mt_vec1 = [prev_mtpoint;closest_mtpoint];
+        mt_vec2 = [closest_mtpoint; succ_mtpoint];
+        
+        %find closest point to motor on two neighbouring MT segments
+        fit_mt1 = polyfit(mt_vec1(:,1),mt_vec1(:,2),1);
+        mt_slope1 = fit_mt1(1);
+        mt_yint1 = fit_mt1(2);
+        perp_slope1 = -1/mt_slope1;
+        perp_yint1 = -perp_slope1*x_tk(1,1)+y_tk(1,1);
+        x_int1 = (perp_yint1-mt_yint1)/(mt_slope1-perp_slope1);
+        y_int1 = perp_slope1*x_int1 + perp_yint1;
+        
+        fit_mt2 = polyfit(mt_vec2(:,1),mt_vec2(:,2),1);
+        mt_slope2 = fit_mt2(1);
+        mt_yint2 = fit_mt2(2);
+        perp_slope2 = -1/mt_slope2;
+        perp_yint2 = -perp_slope2*x_tk(1,1)+y_tk(1,1);
+        x_int2 = (perp_yint2-mt_yint2)/(mt_slope2-perp_slope2);
+        y_int2 = perp_slope2*x_int2 + perp_yint2;
+        
+        %check if intersects are within appropriate MT line segment, if not set very large
+        x_range1 = sort(mt_vec1(:,1));
+        y_range1 = sort(mt_vec1(:,2));
+        x_range2 = sort(mt_vec2(:,1));
+        y_range2 = sort(mt_vec2(:,2));
+        if x_int1>x_range1(2) || x_int1<x_range1(1) || y_int1>y_range1(2) || y_int1<y_range1(1)
+            x_int1 = 1e10;
+            y_int1 = 1e10;
+        elseif x_int2>x_range2(2) || x_int2<x_range2(1) || y_int2>y_range2(2) || y_int2<y_range2(1)
+            x_int2 = 1e10;
+            y_int2 = 1e10;
+        end
+        
+        %see which of two is closer
+        dist_seg1 = sqrt((x_tk(1,1)-x_int1)^2+(y_tk(1,1) - y_int1)^2);
+        dist_seg2 = sqrt((x_tk(1,1)-x_int2)^2+(y_tk(1,1) - y_int2)^2);
+        if dist_seg1 < dist_seg2 %closer to segment 1
+            s1_mt = closest_mtpoint_ind-1;
+            s2_mt = closest_mtpoint_ind;
+            pp=0;
+        else %closer to segment 2
+            s1_mt = closest_mtpoint_ind;
+            s2_mt = closest_mtpoint_ind+1;
+            pp=0;
+        end
+    end
+    s1_mt
+    s2_mt
+    figure
+    plot(mt_coords(:,1),mt_coords(:,2),'-')
+    hold on
+    plot(x_tk,y_tk,'.-')
+    scatter(mt_coords(:,1),mt_coords(:,2))
+    plot(mt_coords(1,1),mt_coords(1,2),'*')
+    plot(x_tk(1),y_tk(1),'*')
+    scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
+    if pp == 1
+    plot(x_int1,y_int1,'b*')
+    plot(x_int2,y_int2,'r*')
+    end
     % polynomial fit to vector (gives MT coordinates for each spot localized in track)
     [~,uni_ind] = unique(interp_mt_coords(:,1),'stable'); %find repeated x-values in MT
     %uni_ind = sort(uni_ind);
@@ -381,7 +484,7 @@ for ftk = 1:nfilttracks
     fit_norm = repmat(sqrt(sum(fit_vector.^2,2)),1,2);
     fit_vector_norm = fit_vector./fit_norm; %normalize
     
-    %taking dot(track,MT)*MT/norm(MT)
+    % taking dot(track,MT)*MT/norm(MT)
     delp = zeros(1,numel(x_tk));
     delp_off = zeros(1,numel(x_tk));
     for kv = 1:numel(x_tk)

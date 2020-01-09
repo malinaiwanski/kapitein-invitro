@@ -5,7 +5,7 @@
 % input: Cell with columns %1=id %2=roi_name %3=x %4=y, filtering options, pixel size
 % output: Filtered cell where each mt{i} is an array with columns %1=x %2=y corresponding to one mt that meets the criteria (e.g. does not cross another mt, etc.)
 
-function [mts, interp_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, filt_short, min_length, pixel_size, num_pix_x, num_pix_y, zplot)
+function [mts, interp_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, filt_short, min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap)
 
 % initialize figure if plotting
 if zplot ~= 0
@@ -24,13 +24,21 @@ if analyze_mt_num ~= -1
     mt_id = find(mts_id(:,1)==analyze_mt_num+1,1); %analyze_mt_num specified as starting from 0, but here IDs start at 1
     mts_x = str2double(mt_data{1,3}(:));
     mts_y = str2double(mt_data{1,4}(:));
-
+    if zcap ==1
+        mts_x = str2double(mt_data{1,4}(:));
+        mts_y = str2double(mt_data{1,3}(:));
+    end
+    
     num_mts = 1;
 else
     %format MT xy positions
     mts_id = str2double(mt_data{1,1}(:))+1;
     mts_x = str2double(mt_data{1,3}(:));
     mts_y = str2double(mt_data{1,4}(:));
+    if zcap ==1
+        mts_x = str2double(mt_data{1,4}(:));
+        mts_y = str2double(mt_data{1,3}(:));
+    end
 
     num_mts = length(unique(mts_id));
 end
@@ -49,11 +57,14 @@ for i = 1:num_mts
     mt_l = length(find(mts_id(:,1)==i)); %number of points making up MT, NOT physical length
     temp_mts{i} = [mts_x([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size, mts_y([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size]; %MT position x,y in nm
     %add one pixel dimension because ImageJ starts at 0, MATLAB at 1; add 0.5 because positions are plotted at the bottom,left of a pixel (??)
-    temp_mts{i} = sortrows(temp_mts{i}); %put x-values in ascending order for later interpolation
+    if temp_mts{i}(1,1) > temp_mts{i}(end,1)
+        temp_mts{i} = flipud(temp_mts{i});
+    end
+    %temp_mts{i} = sortrows(temp_mts{i}); %put x-values in ascending order for later interpolation
     
     %FILTER: skip MTs with single unique x-value (vertical MTs)
     [~,uni_ind] = unique(temp_mts{i}(:,1),'stable'); %find repeated x-values in MT
-    uni_ind = sort(uni_ind);
+    %uni_ind = sort(uni_ind);
     if length(uni_ind) == 1 
         %uni_ind
         skip_mts(i) = 1;

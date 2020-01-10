@@ -393,10 +393,9 @@ for ftk = 1:nfilttracks
         dist_to_start = 0;
     else
         mt_inds_to_start = 1:1:interp_mt_start_ind;
-        dist_to_start = arclength(interp_mts{mt_tk}(mt_inds_to_start,1),interp_mts{mt_tk}(mt_inds_to_start,2));
+        dist_to_start = arclength(interp_mts{mt_tk}(mt_inds_to_start,1),interp_mts{mt_tk}(mt_inds_to_start,2)); %from MT minus-end
     end
     
-    % find between which two points on MT track starts
     tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2));
 
     if zplot ~= 0
@@ -484,7 +483,7 @@ for ftk = 1:nfilttracks
     traj(ftk).mt_coords = mt_coords; %will be flipped if needed for track --> does not necessarily match mts{mt_tk}
     traj(ftk).interp_mt_coords = interp_mt_coords; %will be flipped if needed for track --> does not necessarily match interp_mts{mt_tk}
     traj(ftk).offaxis_position = position_off;
-    traj(ftk).mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
+    traj(ftk).mt_length = tot_mt_length;% sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2)); %%%%%%%%%%%%%%
     traj(ftk).run_length = position(end);
     traj(ftk).inst_vel = inst_vel(1,:);
     if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
@@ -518,7 +517,14 @@ end
 
 %% analyze track start times and position
 track_start_times = cell(num_mts,1);
-track_dist_to_minus_end = {};
+track_dist_to_plus_end = {};
+segment_indices = {};
+cum_plus_cap_vel = [];
+cum_plus_gdp_vel = [];
+cum_seed_vel = [];
+cum_minus_cap_vel = [];
+cum_minus_gdp_vel = [];
+cum_track_start_segment = [];
 for mttk = 1:num_mts
     ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
     if ~isempty(ftk_on_mt)
@@ -547,7 +553,7 @@ for mttk = 1:num_mts
                 mt_inds_to_end = interp_mt_end_ind:1:size(interp_mts{mttk},1);
                 dist_to_end = arclength(interp_mts{mttk}(mt_inds_to_end,1),interp_mts{mttk}(mt_inds_to_end,2));
             end
-            landing_dist_to_mt_end = dist_to_end; %distance from start of track to end of MT
+            landing_dist_to_mt_end = dist_to_end; %distance from start of track to plus-end of MT
             normalized_landing_pos = traj(ftk_on_mt(j)).start_pos_on_mt/tot_mt_length;
 
             %save position on MT and landing info
@@ -577,7 +583,7 @@ for mttk = 1:num_mts
         end
         %% Identify which parts of track are on GMP-CPP parts of MT and which are on GDP parts
         if zcap == 1
-            %order segment boundaries based on distance from minus-end of MT
+            %order segment boundaries based on distance from plus-end of MT
             if ~isempty(boundaries_on_mt{mttk})
     %             boundsq = boundaries_on_mt{mt_tk};
     %             mtendsq = [mt_coords(1,:)]; %minus end
@@ -586,22 +592,24 @@ for mttk = 1:num_mts
                 for j=1:size(boundaries_on_mt{mttk},1)
                     [~,interp_mt_bound_ind] = ismember(boundaries_on_mt{mttk}(j,:),interp_mts{mttk}, 'rows');
                     interp_mt_bound_ind = nonzeros(interp_mt_bound_ind);
-                    mt_inds_to_bound = 1:1:interp_mt_bound_ind;
-                    dist_to_bound{mttk}(j,1) = arclength(interp_mts{mttk}(mt_inds_to_bound,1),interp_mts{mttk}(mt_inds_to_bound,2));
+                    mt_inds_to_bound = interp_mt_bound_ind:1:size(interp_mts{mttk},1);
+                    dist_to_bound{mttk}(j,1) = arclength(interp_mts{mttk}(mt_inds_to_bound,1),interp_mts{mttk}(mt_inds_to_bound,2)); %distance to plus-end
                     dist_to_bound{mttk}(j,2) = j;
     %                 boundaries_on_mt{mt_tk}(j,:) = boundaries_on_mt_old{mt_tk}(points_mtend{1,1}(j),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
                 end
                 dist_to_bound{mttk} = sortrows(dist_to_bound{mttk},1);
                 for j=1:size(boundaries_on_mt{mttk},1)
-                    boundaries_on_mt{mttk}(j,:) = boundaries_on_mt_old{mttk}(dist_to_bound{mttk}(j,2),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
+                    boundaries_on_mt{mttk}(j,:) = boundaries_on_mt_old{mttk}(dist_to_bound{mttk}(j,2),:); %boundaries ordered from closest to furthest from plus-end of MT (i.e. minus- to plus- end)
                 end
             end
             dist_along_mt = [0;dist_to_bound{mttk}(:,1);tot_mt_length];
             
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%maybe check segment lengths??
+            
             if size(dist_along_mt,1) == 4 
-                segment_annotate = 4;
+                segment_annotate = 3;
             elseif size(dist_along_mt,1) == 6
-                segment_annotate = 6;
+                segment_annotate = 5;
             else
                 segment_annotate = 0;
                 disp(['MT number ', num2str(mttk), ' does not have 3 or 5 segments. Retrace MT and/or segment boundaries']);
@@ -615,29 +623,68 @@ for mttk = 1:num_mts
                     for k = 1:size(track_on_interp_mt,1)
                         [~,interp_mt_point_ind] = ismember(track_on_interp_mt(k,:),interp_mts{mttk}, 'rows');
                         interp_mt_point_ind = nonzeros(interp_mt_point_ind);
-                        if interp_mt_point_ind == 1
-                            track_dist_to_minus_end{mttk,ftk_on_mt(i)}(k,1) = 0;
+                        if interp_mt_point_ind == size(interp_mts{mttk},1)
+                            track_dist_to_plus_end{mttk,ftk_on_mt(i)}(k,1) = 0;
                         else
-                            mt_inds_to_point = 1:1:interp_mt_point_ind;
-                            track_dist_to_minus_end{mttk,ftk_on_mt(i)}(k,1) = arclength(interp_mts{mttk}(mt_inds_to_point,1),interp_mts{mttk}(mt_inds_to_point,2));
+                            mt_inds_to_point = interp_mt_point_ind:1:size(interp_mts{mttk},1);
+                            track_dist_to_plus_end{mttk,ftk_on_mt(i)}(k,1) = arclength(interp_mts{mttk}(mt_inds_to_point,1),interp_mts{mttk}(mt_inds_to_point,2));
                         end
                     end
                     
                     %see which segment of MT each point in track is on
-                    for k = 1:size(track_dist_to_minus_end{mttk,ftk_on_mt(i)},1)
-                        
+                    %for k = 1:size(track_dist_to_minus_end{mttk,ftk_on_mt(i)},1)
+                    for k = 1:segment_annotate
+                        [ind,~] = find(track_dist_to_plus_end{mttk,ftk_on_mt(i)}(:,1)>dist_along_mt(k) & track_dist_to_plus_end{mttk,ftk_on_mt(i)}(:,1)<dist_along_mt(k+1));
+                        if k == 1 %is on +cap
+                            plus_cap_ind = ind;
+                        elseif k == 2 %is on gdp
+                            plus_gdp_ind = ind;
+                        elseif k == 3 %is on seed
+                            seed_ind = ind;
+                        elseif k == 4 %is on gdp
+                            minus_gdp_ind = ind;
+                        elseif k == 5 %is on -cap
+                            minus_cap_ind = ind;
+                        end
+                        segment_indices{ftk_on_mt(i),k} = ind;
+                        if ~isempty(ind == 1)
+                            track_start_segment = k;
+                        end
                     end
+                    plus_cap_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),1}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),1}).*exp_time);
+                    if ~isempty(plus_cap_vel)
+                        plus_cap_vel = plus_cap_vel(1,:);
+                    end
+                    plus_gdp_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),2}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),2}).*exp_time);
+                    if ~isempty(plus_gdp_vel)
+                        plus_gdp_vel = plus_gdp_vel(1,:);
+                    end
+                    seed_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),3}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),3}).*exp_time);
+                    if ~isempty(seed_vel)
+                        seed_vel = seed_vel(1,:);
+                    end
+                    if segment_annotate == 5
+                        minus_cap_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),5}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),5}).*exp_time);
+                        if ~isempty(minus_cap_vel)
+                            minus_cap_vel = minus_cap_vel(1,:);
+                        end
+                        minus_gdp_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),4}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),4}).*exp_time);
+                        if ~isempty(minus_gdp_vel)
+                            minus_gdp_vel = minus_gdp_vel(1,:);
+                        end
+                    else
+                        minus_cap_vel = [];
+                        minus_gdp_vel = [];
+                    end
+                    cum_plus_cap_vel = [cum_plus_cap_vel, plus_cap_vel];
+                    cum_plus_gdp_vel = [cum_plus_gdp_vel, plus_gdp_vel];
+                    cum_seed_vel = [cum_seed_vel, seed_vel];
+                    cum_minus_cap_vel = [cum_minus_cap_vel, minus_cap_vel];
+                    cum_minus_gdp_vel = [cum_minus_gdp_vel, minus_gdp_vel];
+                    cum_track_start_segment = [cum_track_start_segment, track_start_segment];
                 end
             end
 
-    %         % find points in track within segment_boundary_dist of any segment boundary
-    %         motorsq = [x_tk,y_tk];
-    %         mtboundsq = boundaries_on_mt{mt_tk};
-    %         [points_boundary,dist_boundary] = rangesearch(motorsq,mtboundsq,segment_boundary_dist,'Distance','euclidean'); %points within specified nm of MT segment boundary (cell with entry for each boundary); values sorted closest to furthest, use closest as crossing point
-
-    %         gdp_frames = 
-    %         seed_frames =
-    %         cap_frames = 
         end
     end
 end

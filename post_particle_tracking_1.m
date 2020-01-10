@@ -32,9 +32,9 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
-zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-zcap = 0; %set to 1 if using capped MTs
+zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
+zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zcap = 1; %set to 1 if using capped MTs
 
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -69,9 +69,9 @@ rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a'; %'kif5b'; %
-mt_type = 'gdp_taxol'; %'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %
-date = '2019-10-30'; %'2019-12-09'; %
-filenum = 5;
+mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
+date = '2019-12-09'; %'2019-10-30'; %
+filenum = 1;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -83,12 +83,7 @@ fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in
 temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
 fclose(fid); 
 [mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap);
-% if zcap == 1 %most MTs vertical, flip x,y
-%     for i = 1:size(interp_mts,1)
-%         mts{i} = flip(mts{i});
-%         interp_mts{i} = flip(interp_mts{i});
-%     end
-% end
+
 all_interp_mts = [];
 for j = 1: size(interp_mts,1)
     all_interp_mts = [all_interp_mts;interp_mts{j}];
@@ -142,26 +137,13 @@ if zcap == 1
     
     boundaries_on_mt = cell(num_mts,1);
     for j = 1:num_mts
-        %[~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT    
-        %fit_mt = polyfit(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
-        %mt_slope = fit_mt(1);
-        %mt_yint = fit_mt(2);
-        %perp_slope = -1/mt_slope;
 
         %find closest point along MT to each segment boundary
         for i = 1:size(segment_boundaries{j},1)
             [nearpoints_mt,dist_nearpoints] = rangesearch(interp_mts{j},segment_boundaries{j},5000,'Distance','euclidean','SortIndices',1); %find nearby points on MT
             closest_mtpoint_ind = nearpoints_mt{i,1}(1);
             closest_mtpoint = interp_mts{j}(closest_mtpoint_ind,:);
-            boundaries_on_mt{j} = [boundaries_on_mt{j}; closest_mtpoint];
-            %perp_yint_bound = -perp_slope*segment_boundaries{j}(i,1)+segment_boundaries{j}(i,2);
-            %x_intersect_bound = (perp_yint_bound-mt_yint)/(mt_slope-perp_slope);
-            %y_intersect_bound = perp_slope*x_intersect_bound + perp_yint_bound;
-%             [~,uni_ind] = unique(interp_mts{j}(:,1),'stable'); %find repeated x-values in MT
-%             bound_on_mt_x = interp1(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,2),segment_boundaries{j}(i,1),'nearest','extrap');
-%             bound_on_mt_y = interp1(interp_mts{j}(uni_ind,1),interp_mts{j}(uni_ind,1),segment_boundaries{j}(i,2),'nearest','extrap');
-%             boundaries_on_mt{j} = [boundaries_on_mt{j}; bound_on_mt_x, bound_on_mt_y];
-            %boundaries_on_mt{j} = [boundaries_on_mt{j}; x_intersect_bound, y_intersect_bound];
+            boundaries_on_mt{j} = [boundaries_on_mt{j}; closest_mtpoint]; 
         end
     end
 end
@@ -414,72 +396,12 @@ for ftk = 1:nfilttracks
     
     % find between which two points on MT track starts
     tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2));
-%     [nearpoints_mt,dist_nearpoints] = rangesearch(mt_coords,[x_tk(1,1),y_tk(1,1)],5000,'Distance','euclidean','SortIndices',1); %find nearby points on MT
-%     closest_mtpoint_ind = nearpoints_mt{1,1}(1);
-%     closest_mtpoint = mt_coords(closest_mtpoint_ind,:);
-%     if closest_mtpoint_ind == 1
-%         pp = 0;
-%         s1_mt = closest_mtpoint_ind;
-%         s2_mt = closest_mtpoint_ind +1;
-%     elseif closest_mtpoint_ind == size(mt_coords,1)
-%         pp = 0;
-%         s1_mt = closest_mtpoint_ind - 1;
-%         s2_mt = closest_mtpoint_ind;
-%     else
-%         pp = 1;
-%         prev_mtpoint = mt_coords(closest_mtpoint_ind-1,:);
-%         succ_mtpoint = mt_coords(closest_mtpoint_ind+1,:);
-%         mt_vec1 = [prev_mtpoint;closest_mtpoint];
-%         mt_vec2 = [closest_mtpoint; succ_mtpoint];
-%         
-%         %find closest point to motor on two neighbouring MT segments
-%         fit_mt1 = polyfit(mt_vec1(:,1),mt_vec1(:,2),1);
-%         mt_slope1 = fit_mt1(1);
-%         mt_yint1 = fit_mt1(2);
-%         perp_slope1 = -1/mt_slope1;
-%         perp_yint1 = -perp_slope1*x_tk(1,1)+y_tk(1,1);
-%         x_int1 = (perp_yint1-mt_yint1)/(mt_slope1-perp_slope1);
-%         y_int1 = perp_slope1*x_int1 + perp_yint1;
-%         
-%         fit_mt2 = polyfit(mt_vec2(:,1),mt_vec2(:,2),1);
-%         mt_slope2 = fit_mt2(1);
-%         mt_yint2 = fit_mt2(2);
-%         perp_slope2 = -1/mt_slope2;
-%         perp_yint2 = -perp_slope2*x_tk(1,1)+y_tk(1,1);
-%         x_int2 = (perp_yint2-mt_yint2)/(mt_slope2-perp_slope2);
-%         y_int2 = perp_slope2*x_int2 + perp_yint2;
-%         
-%         %check if intersects are within appropriate MT line segment, if not set very large
-%         x_range1 = sort(mt_vec1(:,1));
-%         y_range1 = sort(mt_vec1(:,2));
-%         x_range2 = sort(mt_vec2(:,1));
-%         y_range2 = sort(mt_vec2(:,2));
-%         if x_int1>x_range1(2) || x_int1<x_range1(1) || y_int1>y_range1(2) || y_int1<y_range1(1)
-%             x_int1 = 1e20;
-%             y_int1 = 1e20;
-%         elseif x_int2>x_range2(2) || x_int2<x_range2(1) || y_int2>y_range2(2) || y_int2<y_range2(1)
-%             x_int2 = 1e20;
-%             y_int2 = 1e20;
-%         end
-%         
-%         %see which of two is closer
-%         dist_seg1 = sqrt((x_tk(1)-x_int1)^2+(y_tk(1) - y_int1)^2);
-%         dist_seg2 = sqrt((x_tk(1)-x_int2)^2+(y_tk(1) - y_int2)^2);
-%         if dist_seg1 < dist_seg2 %closer to segment 1
-%             s1_mt = closest_mtpoint_ind-1;
-%             s2_mt = closest_mtpoint_ind;
-%         else %closer to segment 2
-%             s1_mt = closest_mtpoint_ind;
-%             s2_mt = closest_mtpoint_ind+1;
-%         end
-%     end
-    
+
     if zplot ~= 0
         figure
         plot(mt_coords(:,1),mt_coords(:,2),'-')
         hold on
-%         plot(mt_coords(s1_mt,1),mt_coords(s1_mt,2),'b.')
-%         plot(mt_coords(s2_mt,1),mt_coords(s2_mt,2),'b.')
+
         plot(x_tk,y_tk,'.-')
         plot(motor_on_mt{ftk}(:,1),motor_on_mt{ftk}(:,2),'r.-')
         scatter(mt_coords(:,1),mt_coords(:,2))
@@ -488,13 +410,6 @@ for ftk = 1:nfilttracks
         if zcap ==1
             scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
         end
-%         if pp == 1
-%             if dist_seg1 < dist_seg2
-%                 plot(x_int1,y_int1,'b*')
-%             else
-%                 plot(x_int2,y_int2,'r*')
-%             end
-%         end
     end
     
     %% Project track along MT
@@ -569,13 +484,7 @@ for ftk = 1:nfilttracks
     if length (frame_tk) > l_window + 4
         proc_vel = diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
     end 
-%     if flip_mt(mt_tk) > no_flip(mt_tk)
-%         inst_vel = inst_vel.*-1;
-%         mean_vel = mean_vel.*-1;
-%         if length (frame_tk) > l_window + 4
-%             proc_vel = proc_vel.*-1;
-%         end
-%     end
+
     
     %% Store data
     traj(ftk).mt = mt_tk;
@@ -630,39 +539,12 @@ end
         ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
         if ~isempty(ftk_on_mt)
             tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
-            
-%             mt_ends = [mts{mttk}(1,:);mts{mttk}(end,:)]';
-%              %mt_xy = interp_mts{mttk};
-%              mt_vector = [0,0;diff(mts{mttk})];
-%              mt_cum_length = cumsum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
-%              mt_length = sum(sqrt(mt_vector(:,1).^2 + mt_vector(:,2).^2));
-% 
-%             % polynomial fit to vector (gives MT coordinates for each spot localized in track)
-%             [~,uni_ind] = unique(interp_mts{mttk}(:,1),'stable'); %find repeated x-values in MT
-%             %uni_ind = sort(uni_ind);
-%             fit_mt = polyfit(interp_mts{mttk}(uni_ind,1),interp_mts{mttk}(uni_ind,2),1);%pchip(MTs{chosen_MT}(uni_ind,1),MTs{chosen_MT}(uni_ind,2)); %%%this still "overfits" the MT
-%             mt_slope = fit_mt(1);
-%             mt_yint = fit_mt(2);
-%             perp_slope = -1/mt_slope;
-            
+  
             if zplot ~= 0
                 figure, hold on
             end
             for j=1:length(ftk_on_mt)
-%                 %find closest point along MT to start of track
-%                 perp_yint_start = -perp_slope*traj(ftk_on_mt(j)).x(1)+traj(ftk_on_mt(j)).y(1);
-%                 x_intersect_start = (perp_yint_start-mt_yint)/(mt_slope-perp_slope);
-%                 y_intersect_start = perp_slope*x_intersect_start + perp_yint_start;
-%                 %find closest point along MT to end of track
-%                 perp_yint_end = -perp_slope*traj(ftk_on_mt(j)).x(end)+traj(ftk_on_mt(j)).y(end);
-%                 x_intersect_end = (perp_yint_end-mt_yint)/(mt_slope-perp_slope);
-%                 y_intersect_end = perp_slope*x_intersect_end + perp_yint_end;
-%                 
-%                 %find position of motor along MT
-%                 dist_to_start = sqrt((mt_ends(1,1) - x_intersect_start).^2+(mt_ends(1,2) - y_intersect_start).^2); %distance from start of MT to start of track
-%                 dist_to_end = sqrt((mt_ends(1,1) - x_intersect_end).^2+(mt_ends(1,2) - y_intersect_end).^2); %distance from start of MT to end of track (if this is smaller, MT is the "wrong" way around
-%                 pos_on_mt = traj(ftk_on_mt(j)).position + dist_to_start;
-%                 
+%                
                 pos_on_mt = traj(ftk_on_mt(j)).position+traj(ftk_on_mt(j)).start_pos_on_mt;
                 
                 if zplot ~= 0
@@ -683,8 +565,6 @@ end
                 end
                 landing_dist_to_mt_end = dist_to_end; %distance from start of track to end of MT
                 normalized_landing_pos = traj(ftk_on_mt(j)).start_pos_on_mt/tot_mt_length;
-%                 landing_dist_to_mt_end = sqrt((mt_ends(end,1) - x_intersect_start).^2+(mt_ends(end,2) - y_intersect_start).^2); %distance from start of track to end of MT
-%                 normalized_landing_pos = dist_to_start/mt_length;
                 
                 %save position on MT and landing info
                 traj(ftk_on_mt(j)).position_on_mt = pos_on_mt;

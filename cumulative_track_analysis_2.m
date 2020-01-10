@@ -271,7 +271,7 @@ for mk = 1:size(motor,2)
         plot(xhist_procvel,1.0.*yprocVhi,'r.');
         hold off
         
-        % landing position along MT
+        % landing position along MT - distance from plus-end
         figure,landpos = gcf;
         [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 300, 'Normalization', 'pdf');
         nhist_landpos=landpos_n;
@@ -282,7 +282,7 @@ for mk = 1:size(motor,2)
         xlabel('Landing distance to MT plus-end (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Landing distance from MT plus-end'])
         hold off
         
-        % landing position along MT
+        % landing position along MT - normalized
         figure,normlandpos = gcf;
         [normlandpos_n, normlandpos_edges]=histcounts(datcat(catk).cum_norm_landing_pos, 'BinWidth', 0.1, 'Normalization', 'pdf');
         nhist_normlandpos=normlandpos_n;

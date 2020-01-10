@@ -46,7 +46,7 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 %% Movies to analyze
 motor = {'kif1a','kif5b'};
 mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'};
-date = {'2019-10-30'}; %, '2019-11-12'};
+date = {'2019-10-30'}; %, '2019-12-09'};
 
 %% Initialize figures
 if zplot ~= 0
@@ -273,7 +273,7 @@ for mk = 1:size(motor,2)
         
         % landing position along MT
         figure,landpos = gcf;
-        [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 500, 'Normalization', 'pdf');
+        [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 300, 'Normalization', 'pdf');
         nhist_landpos=landpos_n;
         xhist_landpos=landpos_edges+(500/2);
         xhist_landpos(end)=[]; 

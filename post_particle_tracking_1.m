@@ -32,7 +32,7 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
+zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
 zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
 zcap = 0; %set to 1 if using capped MTs
 
@@ -69,9 +69,9 @@ rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a'; %'kif5b'; %
-mt_type = '1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %'cap'; %
+mt_type = 'gdp_taxol'; %'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %
 date = '2019-10-30'; %'2019-12-09'; %
-filenum = 1;
+filenum = 5;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -673,7 +673,7 @@ end
                 end
                 
                % start position on MT
-                [~,interp_mt_end_ind] = ismember(traj(ftk_on_mt(j)).pos_on_interpmt(end,:),interp_mts{mttk}, 'rows');
+                [~,interp_mt_end_ind] = ismember(traj(ftk_on_mt(j)).pos_on_interpmt(1,:),interp_mts{mttk}, 'rows');
                 interp_mt_end_ind = nonzeros(interp_mt_end_ind);
                 if interp_mt_end_ind == size(interp_mts{mttk},1)
                     dist_to_end = 0;

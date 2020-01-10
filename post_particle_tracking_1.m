@@ -362,6 +362,8 @@ for mttk = 1:num_mts
 end
 
 motor_on_mt = cell(nfilttracks,1);
+dist_to_bound = {};
+
 for ftk = 1:nfilttracks
     mt_tk = traj(ftk).mt;
     mt_coords = mts{mt_tk};
@@ -408,6 +410,8 @@ for ftk = 1:nfilttracks
         plot(mt_coords(1,1),mt_coords(1,2),'*')
         plot(x_tk(1),y_tk(1),'*')
         if zcap ==1
+            scatter(boundaries_on_mt{mt_tk}(1,1),boundaries_on_mt{mt_tk}(1,2),'m','filled')
+            scatter(boundaries_on_mt{mt_tk}(2,1),boundaries_on_mt{mt_tk}(2,2),'g','filled')
             scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
         end
     end
@@ -446,29 +450,6 @@ for ftk = 1:nfilttracks
 %         figure(traj_plot), hold on, plot(x_tk,y_tk,'.-','Color',cmap(tk,:)) %plots trajectories
 %         figure(kymo_plot), hold on, plot(frame_tk.*exp_time,position,'.-','Color',cmap(tk,:)) %plots "kymographs"
 %     end
-    
-    %% Identify which parts of track are on GMP-CPP parts of MT and which are on GDP parts
-    if zcap == 1
-        %order segment boundaries based on distance from minus-end of MT
-        if ~isempty(boundaries_on_mt{mt_tk})
-            boundsq = boundaries_on_mt{mt_tk};
-            mtendsq = [mt_coords(1,:)]; %minus end
-            [points_mtend,dist_mtend] = rangesearch(boundsq,mtendsq,pixel_size*num_pix_x,'Distance','euclidean'); %points ordered based on distance from MT minus-end
-            boundaries_on_mt_old = boundaries_on_mt;
-            for j=1:size(boundaries_on_mt{mt_tk},1)
-                boundaries_on_mt{mt_tk}(j,:) = boundaries_on_mt_old{mt_tk}(points_mtend{1,1}(j),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
-            end
-        end
-        
-        % find points in track within segment_boundary_dist of any segment boundary
-        motorsq = [x_tk,y_tk];
-        mtboundsq = boundaries_on_mt{mt_tk};
-        [points_boundary,dist_boundary] = rangesearch(motorsq,mtboundsq,segment_boundary_dist,'Distance','euclidean'); %points within specified nm of MT segment boundary (cell with entry for each boundary); values sorted closest to furthest, use closest as crossing point
-
-%         gdp_frames = 
-%         seed_frames =
-%         cap_frames = 
-    end
 
     %% Sliding MSD analysis
     if length (frame_tk) > l_window + 4
@@ -534,49 +515,52 @@ if zplot ~= 0
         %figure(offaxis_plot), hold on, plot((traj(ftk).frames).*exp_time,traj(ftk).offaxis_position,'.-','Color',cmap(ftk,:)) %plots off-axis "kymographs"
     end
 end    
-    track_start_times = cell(num_mts,1);
-    for mttk = 1:num_mts
-        ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
-        if ~isempty(ftk_on_mt)
-            tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
-  
-            if zplot ~= 0
-                figure, hold on
-            end
-            for j=1:length(ftk_on_mt)
+
+%% analyze track start times and position
+track_start_times = cell(num_mts,1);
+track_dist_to_minus_end = {};
+for mttk = 1:num_mts
+    ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
+    if ~isempty(ftk_on_mt)
+        tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
+
+        if zplot ~= 0
+            figure, hold on
+        end
+        for j=1:length(ftk_on_mt)
 %                
-                pos_on_mt = traj(ftk_on_mt(j)).position+traj(ftk_on_mt(j)).start_pos_on_mt;
-                
-                if zplot ~= 0
-                    %plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
-                    plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
-                    
-                    %plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
-                end
-                
-               % start position on MT
-                [~,interp_mt_end_ind] = ismember(traj(ftk_on_mt(j)).pos_on_interpmt(1,:),interp_mts{mttk}, 'rows');
-                interp_mt_end_ind = nonzeros(interp_mt_end_ind);
-                if interp_mt_end_ind == size(interp_mts{mttk},1)
-                    dist_to_end = 0;
-                else
-                    mt_inds_to_end = interp_mt_end_ind:1:size(interp_mts{mttk},1);
-                    dist_to_end = arclength(interp_mts{mttk}(mt_inds_to_end,1),interp_mts{mttk}(mt_inds_to_end,2));
-                end
-                landing_dist_to_mt_end = dist_to_end; %distance from start of track to end of MT
-                normalized_landing_pos = traj(ftk_on_mt(j)).start_pos_on_mt/tot_mt_length;
-                
-                %save position on MT and landing info
-                traj(ftk_on_mt(j)).position_on_mt = pos_on_mt;
-                traj(ftk_on_mt(j)).normalized_pos_on_mt = pos_on_mt./tot_mt_length;
-                %traj(ftk_on_mt(j)).normalized_landing_pos = normalized_landing_pos;
-                %traj(ftk_on_mt(j)).landing_dist_to_mt_end = landing_dist_to_mt_end;  
-                cum_norm_landing_pos = [cum_norm_landing_pos; normalized_landing_pos];
-                cum_landing_dist_to_mt_end = [cum_landing_dist_to_mt_end; landing_dist_to_mt_end];
-                
-                %landing rate with time
-                track_start_times{mttk} = [track_start_times{mttk}; traj(ftk_on_mt(j)).frames(1)*exp_time]; %[s]
-                
+            pos_on_mt = traj(ftk_on_mt(j)).position+traj(ftk_on_mt(j)).start_pos_on_mt;
+
+            if zplot ~= 0
+                %plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
+                plot((traj(ftk_on_mt(j)).frames).*exp_time,pos_on_mt,'.-','Color',cmap(mttk,:))%ftk_on_mt(j),:)) %plots "kymograph" for each MT
+
+                %plot((traj(ftk_on_mt(j)).frames).*exp_time,traj(ftk_on_mt(j)).position,'.-','Color',cmap(ftk_on_mt(j),:)) %plots "kymographs"
+            end
+
+           % start position on MT
+            [~,interp_mt_end_ind] = ismember(traj(ftk_on_mt(j)).pos_on_interpmt(1,:),interp_mts{mttk}, 'rows');
+            interp_mt_end_ind = nonzeros(interp_mt_end_ind);
+            if interp_mt_end_ind == size(interp_mts{mttk},1)
+                dist_to_end = 0;
+            else
+                mt_inds_to_end = interp_mt_end_ind:1:size(interp_mts{mttk},1);
+                dist_to_end = arclength(interp_mts{mttk}(mt_inds_to_end,1),interp_mts{mttk}(mt_inds_to_end,2));
+            end
+            landing_dist_to_mt_end = dist_to_end; %distance from start of track to end of MT
+            normalized_landing_pos = traj(ftk_on_mt(j)).start_pos_on_mt/tot_mt_length;
+
+            %save position on MT and landing info
+            traj(ftk_on_mt(j)).position_on_mt = pos_on_mt;
+            traj(ftk_on_mt(j)).normalized_pos_on_mt = pos_on_mt./tot_mt_length;
+            %traj(ftk_on_mt(j)).normalized_landing_pos = normalized_landing_pos;
+            %traj(ftk_on_mt(j)).landing_dist_to_mt_end = landing_dist_to_mt_end;  
+            cum_norm_landing_pos = [cum_norm_landing_pos; normalized_landing_pos];
+            cum_landing_dist_to_mt_end = [cum_landing_dist_to_mt_end; landing_dist_to_mt_end];
+
+            %landing rate with time
+            track_start_times{mttk} = [track_start_times{mttk}; traj(ftk_on_mt(j)).frames(1)*exp_time]; %[s]
+
 %                 figure,trackstarts=gcf; %initialize figure
 %                 [tkstart_n, tkstart_edges]=histcounts(cum_run_length, 'BinWidth', tkstart_binwidth, 'Normalization', 'pdf');
 %                 nhist_tkstart=tkstart_n;
@@ -585,15 +569,78 @@ end
 %                 figure(trackstarts), hold on
 %                 bar(xhist_tkstart,nhist_tkstart)
 %                 xlabel('Time of landing (s)'), ylabel('Probability density'), title([motor,' ', mt_type,' Track start times for MT number ', num2str(mttk)])
-%                 
+        end
+        if zplot ~= 0
+            xlabel('time (s)'), ylabel('position along MT (nm)'), title(['Kymographs for MT number ', num2str(mttk), ' (MT length ', num2str(tot_mt_length), 'nm)'])
+            xlim([0 num_frames*exp_time])%, ylim([0 mt_length])
+            hold off
+        end
+        %% Identify which parts of track are on GMP-CPP parts of MT and which are on GDP parts
+        if zcap == 1
+            %order segment boundaries based on distance from minus-end of MT
+            if ~isempty(boundaries_on_mt{mttk})
+    %             boundsq = boundaries_on_mt{mt_tk};
+    %             mtendsq = [mt_coords(1,:)]; %minus end
+    %             [points_mtend,dist_mtend] = rangesearch(boundsq,mtendsq,pixel_size*num_pix_x,'Distance','euclidean'); %points ordered based on distance from MT minus-end
+                boundaries_on_mt_old = boundaries_on_mt;
+                for j=1:size(boundaries_on_mt{mttk},1)
+                    [~,interp_mt_bound_ind] = ismember(boundaries_on_mt{mttk}(j,:),interp_mts{mttk}, 'rows');
+                    interp_mt_bound_ind = nonzeros(interp_mt_bound_ind);
+                    mt_inds_to_bound = 1:1:interp_mt_bound_ind;
+                    dist_to_bound{mttk}(j,1) = arclength(interp_mts{mttk}(mt_inds_to_bound,1),interp_mts{mttk}(mt_inds_to_bound,2));
+                    dist_to_bound{mttk}(j,2) = j;
+    %                 boundaries_on_mt{mt_tk}(j,:) = boundaries_on_mt_old{mt_tk}(points_mtend{1,1}(j),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
+                end
+                dist_to_bound{mttk} = sortrows(dist_to_bound{mttk},1);
+                for j=1:size(boundaries_on_mt{mttk},1)
+                    boundaries_on_mt{mttk}(j,:) = boundaries_on_mt_old{mttk}(dist_to_bound{mttk}(j,2),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
+                end
             end
-            if zplot ~= 0
-                xlabel('time (s)'), ylabel('position along MT (nm)'), title(['Kymographs for MT number ', num2str(mttk), ' (MT length ', num2str(tot_mt_length), 'nm)'])
-                xlim([0 num_frames*exp_time])%, ylim([0 mt_length])
-                hold off
+            dist_along_mt = [0;dist_to_bound{mttk}(:,1);tot_mt_length];
+            
+            if size(dist_along_mt,1) == 4 
+                segment_annotate = 4;
+            elseif size(dist_along_mt,1) == 6
+                segment_annotate = 6;
+            else
+                segment_annotate = 0;
+                disp(['MT number ', num2str(mttk), ' does not have 3 or 5 segments. Retrace MT and/or segment boundaries']);
             end
+            
+            %2 cases, either we have 3 (seed, GDP, cap) or 5 (-cap, GDP, seed, GDP, +cap) segments
+            if segment_annotate ~= 0
+                for i=1:length(ftk_on_mt) %each track on this MT
+                    %find distance of each point in motor trajectory to MT minus-end
+                    track_on_interp_mt = traj(ftk_on_mt(i)).pos_on_interpmt;
+                    for k = 1:size(track_on_interp_mt,1)
+                        [~,interp_mt_point_ind] = ismember(track_on_interp_mt(k,:),interp_mts{mttk}, 'rows');
+                        interp_mt_point_ind = nonzeros(interp_mt_point_ind);
+                        if interp_mt_point_ind == 1
+                            track_dist_to_minus_end{mttk,ftk_on_mt(i)}(k,1) = 0;
+                        else
+                            mt_inds_to_point = 1:1:interp_mt_point_ind;
+                            track_dist_to_minus_end{mttk,ftk_on_mt(i)}(k,1) = arclength(interp_mts{mttk}(mt_inds_to_point,1),interp_mts{mttk}(mt_inds_to_point,2));
+                        end
+                    end
+                    
+                    %see which segment of MT each point in track is on
+                    for k = 1:size(track_dist_to_minus_end{mttk,ftk_on_mt(i)},1)
+                        
+                    end
+                end
+            end
+
+    %         % find points in track within segment_boundary_dist of any segment boundary
+    %         motorsq = [x_tk,y_tk];
+    %         mtboundsq = boundaries_on_mt{mt_tk};
+    %         [points_boundary,dist_boundary] = rangesearch(motorsq,mtboundsq,segment_boundary_dist,'Distance','euclidean'); %points within specified nm of MT segment boundary (cell with entry for each boundary); values sorted closest to furthest, use closest as crossing point
+
+    %         gdp_frames = 
+    %         seed_frames =
+    %         cap_frames = 
         end
     end
+end
 % end
 
 

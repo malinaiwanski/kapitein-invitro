@@ -23,7 +23,7 @@
 
 % You will also need to download the following functions:
 % arclength from https://nl.mathworks.com/matlabcentral/fileexchange/34871-arclength
-%interparc from https://nl.mathworks.com/matlabcentral/fileexchange/34874-interparc
+% interparc from https://nl.mathworks.com/matlabcentral/fileexchange/34874-interparc
 
 clear all, close all
 addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
@@ -33,8 +33,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
-zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-zcap = 1; %set to 1 if using capped MTs
+zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zcap = 0; %set to 1 if using capped MTs
 
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -69,8 +69,8 @@ rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a'; %'kif5b'; %
-mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
-date = '2019-12-09'; %'2019-10-30'; %
+mt_type = '1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %'cap'; %
+date = '2019-10-30'; %'2019-12-09'; %
 filenum = 1;
 
 %% Load data
@@ -403,17 +403,17 @@ for ftk = 1:nfilttracks
     end
     
     % start position on MT
-    [~,interp_mt_start_ind] = ismember(interp_mts{mt_tk}, motor_on_mt{ftk}(1,:),'rows');
+    [~,interp_mt_start_ind] = ismember(motor_on_mt{ftk}(1,:), interp_mts{mt_tk},'rows');
     interp_mt_start_ind = nonzeros(interp_mt_start_ind);
     if interp_mt_start_ind == 1
         dist_to_start = 0;
     else
         mt_inds_to_start = 1:1:interp_mt_start_ind;
-        dist_to_start = arclength(interp_mts{mt_tk}(mt_inds_to_start,1),interp_mts{mt_tk}(mt_inds_to_start,2),'linear');
+        dist_to_start = arclength(interp_mts{mt_tk}(mt_inds_to_start,1),interp_mts{mt_tk}(mt_inds_to_start,2));
     end
     
     % find between which two points on MT track starts
-    tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2),'spline');
+    tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2));
 %     [nearpoints_mt,dist_nearpoints] = rangesearch(mt_coords,[x_tk(1,1),y_tk(1,1)],5000,'Distance','euclidean','SortIndices',1); %find nearby points on MT
 %     closest_mtpoint_ind = nearpoints_mt{1,1}(1);
 %     closest_mtpoint = mt_coords(closest_mtpoint_ind,:);
@@ -485,7 +485,9 @@ for ftk = 1:nfilttracks
         scatter(mt_coords(:,1),mt_coords(:,2))
         plot(mt_coords(1,1),mt_coords(1,2),'*')
         plot(x_tk(1),y_tk(1),'*')
-        scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
+        if zcap ==1
+            scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
+        end
 %         if pp == 1
 %             if dist_seg1 < dist_seg2
 %                 plot(x_int1,y_int1,'b*')
@@ -627,7 +629,7 @@ end
     for mttk = 1:num_mts
         ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
         if ~isempty(ftk_on_mt)
-            tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2),'linear');
+            tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
             
 %             mt_ends = [mts{mttk}(1,:);mts{mttk}(end,:)]';
 %              %mt_xy = interp_mts{mttk};
@@ -671,13 +673,13 @@ end
                 end
                 
                % start position on MT
-                [~,interp_mt_end_ind] = ismember(interp_mts{mttk}, traj(ftk_on_mt(j)).pos_on_interpmt(end,:),'rows');
+                [~,interp_mt_end_ind] = ismember(traj(ftk_on_mt(j)).pos_on_interpmt(end,:),interp_mts{mttk}, 'rows');
                 interp_mt_end_ind = nonzeros(interp_mt_end_ind);
                 if interp_mt_end_ind == size(interp_mts{mttk},1)
                     dist_to_end = 0;
                 else
                     mt_inds_to_end = interp_mt_end_ind:1:size(interp_mts{mttk},1);
-                    dist_to_end = arclength(interp_mts{mttk}(mt_inds_to_end,1),interp_mts{mttk}(mt_inds_to_end,2),'linear');
+                    dist_to_end = arclength(interp_mts{mttk}(mt_inds_to_end,1),interp_mts{mttk}(mt_inds_to_end,2));
                 end
                 landing_dist_to_mt_end = dist_to_end; %distance from start of track to end of MT
                 normalized_landing_pos = traj(ftk_on_mt(j)).start_pos_on_mt/tot_mt_length;

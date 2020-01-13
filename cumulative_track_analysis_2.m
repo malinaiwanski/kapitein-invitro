@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -45,9 +45,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap'}; %
-date = {'2019-10-30'}; %{'2019-12-09'}; %
+motor = {'kif1a'}; %{'kif1a','kif5b'}; %
+mt_type = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+date = {'2019-12-09'}; %{'2019-10-30'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -306,6 +306,61 @@ for mk = 1:size(motor,2)
         plot(xhist_procvel,1.0.*yprocVhi,'r.');
         hold off
         
+        % velocity on different segments
+        if zcap ==1
+            %each segment
+            figure,segmentvel=gcf; %initialize figure 
+            [seg1vel_n, seg1vel_edges]=histcounts(datcat(catk).cum_plus_cap_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_seg1vel=seg1vel_n;
+            xhist_seg1vel=seg1vel_edges+(vel_binwidth/2);
+            xhist_seg1vel(end)=[]; 
+            [seg2vel_n, seg2vel_edges]=histcounts(datcat(catk).cum_plus_gdp_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_seg2vel=seg2vel_n;
+            xhist_seg2vel=seg2vel_edges+(vel_binwidth/2);
+            xhist_seg2vel(end)=[]; 
+            [seg3vel_n, seg3vel_edges]=histcounts(datcat(catk).cum_seed_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_seg3vel=seg3vel_n;
+            xhist_seg3vel=seg3vel_edges+(vel_binwidth/2);
+            xhist_seg3vel(end)=[]; 
+            [seg4vel_n, seg4vel_edges]=histcounts(datcat(catk).cum_minus_gdp_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_seg4vel=seg4vel_n;
+            xhist_seg4vel=seg4vel_edges+(vel_binwidth/2);
+            xhist_seg4vel(end)=[]; 
+            [seg5vel_n, seg5vel_edges]=histcounts(datcat(catk).cum_minus_cap_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_seg5vel=seg5vel_n;
+            xhist_seg5vel=seg5vel_edges+(vel_binwidth/2);
+            xhist_seg5vel(end)=[]; 
+            figure(segmentvel), hold on 
+            bar(xhist_seg1vel,nhist_seg1vel,'m','FaceAlpha',0.6)
+            bar(xhist_seg2vel,nhist_seg2vel,'g','FaceAlpha',0.6)
+            bar(xhist_seg3vel,nhist_seg3vel,'k','FaceAlpha',0.6)
+            bar(xhist_seg4vel,nhist_seg4vel,'b','FaceAlpha',0.6)
+            bar(xhist_seg5vel,nhist_seg5vel,'r','FaceAlpha',0.6)      
+            xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous velocity by segment histogram'])
+            hold off
+            
+            %segment type
+            figure,segmenttypevel=gcf; %initialize figure 
+            [capvel_n, capvel_edges]=histcounts([datcat(catk).cum_plus_cap_vel;datcat(catk).cum_minus_cap_vel], 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_capvel=capvel_n;
+            xhist_capvel=capvel_edges+(vel_binwidth/2);
+            xhist_capvel(end)=[];
+            [gdpvel_n, gdpvel_edges]=histcounts([datcat(catk).cum_plus_gdp_vel;datcat(catk).cum_minus_gdp_vel], 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_gdpvel=gdpvel_n;
+            xhist_gdpvel=gdpvel_edges+(vel_binwidth/2);
+            xhist_gdpvel(end)=[];
+            [seedvel_n, seedvel_edges]=histcounts(datcat(catk).cum_seed_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+            nhist_seedvel=seedvel_n;
+            xhist_seedvel=seedvel_edges+(vel_binwidth/2);
+            xhist_seedvel(end)=[];
+            figure(segmenttypevel), hold on 
+            bar(xhist_capvel,nhist_capvel,'m','FaceAlpha',0.6)
+            bar(xhist_gdpvel,nhist_gdpvel,'g','FaceAlpha',0.6)
+            bar(xhist_seedvel,nhist_seedvel,'k','FaceAlpha',0.6)     
+            xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous velocity by segment type histogram'])
+            hold off
+        end
+        
         % landing position along MT - distance from plus-end
         figure,landpos = gcf;
         [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 300, 'Normalization', 'pdf');
@@ -331,7 +386,9 @@ for mk = 1:size(motor,2)
         % landing time on given MT
         figure, landtime = gcf;
         figure(landtime), hold on
+        num_tracks_mt = [];
         mt_lengths = [];
+        num_tracks_per_um = [];
         num_mov = size(datcat(catk).track_start_times,2);
         mtnum = 0;
         for movj = 1:num_mov
@@ -339,18 +396,41 @@ for mk = 1:size(motor,2)
             for mtj = 1:num_mt_mov
                 mtnum = mtnum+1;
                 mt_length_temp = (datcat(catk).mt_lengths{movj}{mtj})/1000;
-                if ~isempty(mt_length_temp)
+%                 if ~isempty(mt_length_temp)
                     mt_lengths(mtnum) = mt_length_temp;
-                end
-                num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+%                 end
+                num_tracks_mt(mtnum) = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+                num_tracks_per_um_temp = num_tracks_mt(mtnum)/mt_length_temp;
+                num_tracks_per_um = [num_tracks_per_um; num_tracks_per_um_temp];
                 cmap = colormap(parula(num_mov));
-                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
+                scatter(repmat(mtnum,[num_tracks_mt(mtnum),1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
             end 
         end
-        xlabel('MT number'), ylabel('Track start time (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Landing times on each MT'])
+        xlabel('MT number'), ylabel('Track start time (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Landing times on each MT'])
 %         xlim([0 mtnum])
         hold off
+        % number of tracks on a MT per um
+        figure,numtracks = gcf;
+        [numtkpum_n, numtkpum_edges]=histcounts(num_tracks_per_um, 'BinWidth', 0.1, 'Normalization', 'count');
+        nhist_numtkpum=numtkpum_n;
+        xhist_numtkpum=numtkpum_edges+(0.1/2);
+        xhist_numtkpum(end)=[]; 
+        figure(numtracks), hold on 
+        bar(xhist_numtkpum,nhist_numtkpum)
+        xlabel('Number of track starts per \mum'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized Number of Tracks on given MT'])
+        hold off
+        % number of tracks on a MT
+        figure,numtracksmt = gcf;
+        [numtkpmt_n, numtkpmt_edges]=histcounts(num_tracks_mt, 'BinWidth', 1, 'Normalization', 'probability');
+        nhist_numtkpmt=numtkpmt_n;
+        xhist_numtkpmt=numtkpmt_edges+(1/2);
+        xhist_numtkpmt(end)=[]; 
+        figure(numtracksmt), hold on 
+        bar(xhist_numtkpmt,nhist_numtkpmt)
+        xlabel('Number of track starts per MT'), ylabel('Probability'), title([motor{mk},' ', mt_type{mtk},' Number of Tracks on given MT'])
+        hold off
         
+        %time between landing events on a given MT
         figure, timebwland = gcf;
         figure(timebwland), hold on
         num_mov = size(datcat(catk).track_start_times,2);
@@ -390,7 +470,7 @@ for mk = 1:size(motor,2)
                         plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
                    
                     end
-                    xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Time between start of tracks'])
+                    xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between start of tracks'])
                     xlim([0 mtnum])
                     %hold off
                 end
@@ -407,13 +487,13 @@ for mk = 1:size(motor,2)
         hold off
         
         figure,timebwlandbydisthist = gcf;
-        [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 1, 'Normalization', 'pdf');
+        [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 5, 'Normalization', 'pdf');
         nhist_deltlanddist=deltlanddist_n;
         xhist_deltlanddist=deltlanddist_edges+(1/2);
         xhist_deltlanddist(end)=[]; 
         figure(timebwlandbydisthist), hold on 
         bar(xhist_deltlanddist,nhist_deltlanddist)
-        xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
+        xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between landing events'])
         hold off
         
         %track start segment

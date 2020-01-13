@@ -331,7 +331,9 @@ for mk = 1:size(motor,2)
         % landing time on given MT
         figure, landtime = gcf;
         figure(landtime), hold on
+        num_tracks_mt = [];
         mt_lengths = [];
+        num_tracks_per_um = [];
         num_mov = size(datcat(catk).track_start_times,2);
         mtnum = 0;
         for movj = 1:num_mov
@@ -339,18 +341,41 @@ for mk = 1:size(motor,2)
             for mtj = 1:num_mt_mov
                 mtnum = mtnum+1;
                 mt_length_temp = (datcat(catk).mt_lengths{movj}{mtj})/1000;
-                if ~isempty(mt_length_temp)
+%                 if ~isempty(mt_length_temp)
                     mt_lengths(mtnum) = mt_length_temp;
-                end
-                num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+%                 end
+                num_tracks_mt(mtnum) = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+                num_tracks_per_um_temp = num_tracks_mt(mtnum)/mt_length_temp;
+                num_tracks_per_um = [num_tracks_per_um; num_tracks_per_um_temp];
                 cmap = colormap(parula(num_mov));
-                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
+                scatter(repmat(mtnum,[num_tracks_mt(mtnum),1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
             end 
         end
-        xlabel('MT number'), ylabel('Track start time (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Landing times on each MT'])
+        xlabel('MT number'), ylabel('Track start time (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Landing times on each MT'])
 %         xlim([0 mtnum])
         hold off
+        % number of tracks on a MT per um
+        figure,numtracks = gcf;
+        [numtkpum_n, numtkpum_edges]=histcounts(num_tracks_per_um, 'BinWidth', 0.1, 'Normalization', 'count');
+        nhist_numtkpum=numtkpum_n;
+        xhist_numtkpum=numtkpum_edges+(0.1/2);
+        xhist_numtkpum(end)=[]; 
+        figure(numtracks), hold on 
+        bar(xhist_numtkpum,nhist_numtkpum)
+        xlabel('Number of track starts per \mum'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized Number of Tracks on given MT'])
+        hold off
+        % number of tracks on a MT
+        figure,numtracksmt = gcf;
+        [numtkpmt_n, numtkpmt_edges]=histcounts(num_tracks_mt, 'BinWidth', 1, 'Normalization', 'probability');
+        nhist_numtkpmt=numtkpmt_n;
+        xhist_numtkpmt=numtkpmt_edges+(1/2);
+        xhist_numtkpmt(end)=[]; 
+        figure(numtracksmt), hold on 
+        bar(xhist_numtkpmt,nhist_numtkpmt)
+        xlabel('Number of track starts per MT'), ylabel('Probability'), title([motor{mk},' ', mt_type{mtk},' Number of Tracks on given MT'])
+        hold off
         
+        %time between landing events on a given MT
         figure, timebwland = gcf;
         figure(timebwland), hold on
         num_mov = size(datcat(catk).track_start_times,2);
@@ -390,7 +415,7 @@ for mk = 1:size(motor,2)
                         plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
                    
                     end
-                    xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Time between start of tracks'])
+                    xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between start of tracks'])
                     xlim([0 mtnum])
                     %hold off
                 end
@@ -407,41 +432,41 @@ for mk = 1:size(motor,2)
         hold off
         
         figure,timebwlandbydisthist = gcf;
-        [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 1, 'Normalization', 'pdf');
+        [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 5, 'Normalization', 'pdf');
         nhist_deltlanddist=deltlanddist_n;
         xhist_deltlanddist=deltlanddist_edges+(1/2);
         xhist_deltlanddist(end)=[]; 
         figure(timebwlandbydisthist), hold on 
         bar(xhist_deltlanddist,nhist_deltlanddist)
-        xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
+        xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between landing events'])
         hold off
         
         %track start segment
-        
-        figure,trackstartsegment=gcf; %initialize figure
-        [tkstartseg_n, tkstartseg_edges]=histcounts(datcat(catk).cum_track_start_segment, 'BinEdges', [0.5,1.5,2.5,3.5,4.5,5.5], 'Normalization', 'count');
-        nhist_tkstartseg=tkstartseg_n;
-        xhist_tkstartseg= [1,2,3,4,5];
-        %xhist_tkstartseg(end)=[]; 
-        for j = 1:size(xhist_tkstartseg,2)
-            nhist_tkstartseg(j) = nhist_tkstartseg(j)/(cum_segment_lengths(j)/1000);
-        end
-        figure(trackstartsegment), hold on 
-        bar(xhist_tkstartseg,nhist_tkstartseg)
-        set(gca,'XTick',[1,2,3,4,5], 'xticklabel',{'Plus GMP-CPP cap','Plus GDP lattice','GMP-CPP seed','Minus GDP lattice','Minus GMP-CPP cap'});
-        xlabel('MT Segment'), ylabel('Number of tracks starting in segment per unit distance (/\mum)'), title([motor{mk},' ', mt_type{mtk},' Track Start Segment'])
-        
-        figure, trackstartsegmenttype=gcf;
-        nhist_tk_starttype = zeros(3,1);
-        xhist_tkstarttype = [1,2,3];
-        figure(trackstartsegmenttype), hold on 
-        nhist_tkstarttype(1) = nhist_tkstartseg(1)+nhist_tkstartseg(5);
-        nhist_tkstarttype(2) = nhist_tkstartseg(2)+nhist_tkstartseg(4);
-        nhist_tkstarttype(3) = nhist_tkstartseg(3);
-        bar(nhist_tkstarttype)
-        set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP caps','GDP lattice','GMP-CPP seed'});
-        xlabel('MT Segment Type'), ylabel('Number of tracks starting in segment per unit distance (/\mum)'), title([motor{mk},' ', mt_type{mtk},' Track Start Segment'])
-        
+        if zcap == 1
+            figure,trackstartsegment=gcf; %initialize figure
+            [tkstartseg_n, tkstartseg_edges]=histcounts(datcat(catk).cum_track_start_segment, 'BinEdges', [0.5,1.5,2.5,3.5,4.5,5.5], 'Normalization', 'count');
+            nhist_tkstartseg=tkstartseg_n;
+            xhist_tkstartseg= [1,2,3,4,5];
+            %xhist_tkstartseg(end)=[]; 
+            for j = 1:size(xhist_tkstartseg,2)
+                nhist_tkstartseg(j) = nhist_tkstartseg(j)/(cum_segment_lengths(j)/1000);
+            end
+            figure(trackstartsegment), hold on 
+            bar(xhist_tkstartseg,nhist_tkstartseg)
+            set(gca,'XTick',[1,2,3,4,5], 'xticklabel',{'Plus GMP-CPP cap','Plus GDP lattice','GMP-CPP seed','Minus GDP lattice','Minus GMP-CPP cap'});
+            xlabel('MT Segment'), ylabel('Number of tracks starting in segment per unit distance (/\mum)'), title([motor{mk},' ', mt_type{mtk},' Track Start Segment'])
+
+            figure, trackstartsegmenttype=gcf;
+            nhist_tk_starttype = zeros(3,1);
+            xhist_tkstarttype = [1,2,3];
+            figure(trackstartsegmenttype), hold on 
+            nhist_tkstarttype(1) = nhist_tkstartseg(1)+nhist_tkstartseg(5);
+            nhist_tkstarttype(2) = nhist_tkstartseg(2)+nhist_tkstartseg(4);
+            nhist_tkstarttype(3) = nhist_tkstartseg(3);
+            bar(nhist_tkstarttype)
+            set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP caps','GDP lattice','GMP-CPP seed'});
+            xlabel('MT Segment Type'), ylabel('Number of tracks starting in segment per unit distance (/\mum)'), title([motor{mk},' ', mt_type{mtk},' Track Start Segment'])
+        end 
 %         failed = lifetimes(find(censored==0));
 %         nfailed = size(failed);
 %         survived = lifetimes(find(censored~=0));

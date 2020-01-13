@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 1; %set to 1 if using capped MTs
+zcap = 0; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -45,9 +45,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a'}; %,'kif5b'};
-mt_type = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'};
-date = {'2019-12-09'}; %{'2019-10-30'}; %
+motor = {'kif1a','kif5b'}; %{'kif1a'}; %
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap'}; %
+date = {'2019-10-30'}; %{'2019-12-09'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -84,6 +84,11 @@ for mk = 1:size(motor,2)
         datcat(catk).mt_id = {};
         datcat(catk).mts = {};
         datcat(catk).interp_mts = {};
+        datcat(catk).mt_lengths = {};
+        if zcap == 1
+            datcat(catk).boundaries_on_mt = {};
+            datcat(catk).segment_lengths = {};
+        end
         datcat(catk).inst_vel = {};
         datcat(catk).proc_vel = {};
         %datcat(catk).loc_alpha = {};
@@ -105,9 +110,12 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_seed_vel = [];
             datcat(catk).cum_minus_cap_vel = [];
             datcat(catk).cum_minus_gdp_vel = [];
+            datcat(catk).cum_track_start_segment = [];
         end
         
         cum_time_bw_landing = [];
+        cum_time_bw_landing_by_length = [];
+        cum_segment_lengths = zeros(5,1);
         
         %% read in .mat file from each movie
         for movk = 1:numel(traj_files)
@@ -123,6 +131,16 @@ for mk = 1:size(motor,2)
             datcat(catk).mt_id{movk} = datmovk.traj.mt;
             datcat(catk).mts{movk} = datmovk.mts;
             datcat(catk).interp_mts{movk} = datmovk.interp_mts;
+            datcat(catk).mt_lengths{movk} = datmovk.mt_lengths;
+            if zcap == 1
+                datcat(catk).boundaries_on_mt{movk} = datmovk.boundaries_on_mt;
+                datcat(catk).segment_lengths{movk} = datmovk.segment_lengths;
+                for i = 1:size(datcat(catk).segment_lengths{movk},2)
+                    for j = 1:size(datcat(catk).segment_lengths{movk}{i},1)
+                        cum_segment_lengths(j) = cum_segment_lengths(j) + datcat(catk).segment_lengths{movk}{i}(j);
+                    end
+                end
+            end
             
             datcat(catk).inst_vel{movk} = datmovk.traj.inst_vel;
             datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
@@ -146,6 +164,7 @@ for mk = 1:size(motor,2)
                 datcat(catk).cum_seed_vel = [datcat(catk).cum_seed_vel; datmovk.cum_seed_vel'];
                 datcat(catk).cum_minus_cap_vel = [datcat(catk).cum_minus_cap_vel; datmovk.cum_minus_cap_vel'];
                 datcat(catk).cum_minus_gdp_vel = [datcat(catk).cum_minus_gdp_vel; datmovk.cum_minus_gdp_vel'];
+                datcat(catk).cum_track_start_segment = [datcat(catk).cum_track_start_segment; datmovk.cum_track_start_segment'];
             end
             
         end
@@ -312,18 +331,23 @@ for mk = 1:size(motor,2)
         % landing time on given MT
         figure, landtime = gcf;
         figure(landtime), hold on
+        mt_lengths = [];
         num_mov = size(datcat(catk).track_start_times,2);
         mtnum = 0;
         for movj = 1:num_mov
             num_mt_mov = size(datcat(catk).track_start_times{1,movj},1);
             for mtj = 1:num_mt_mov
                 mtnum = mtnum+1;
+                mt_length_temp = (datcat(catk).mt_lengths{movj}{mtj})/1000;
+                if ~isempty(mt_length_temp)
+                    mt_lengths(mtnum) = mt_length_temp;
+                end
                 num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
                 cmap = colormap(parula(num_mov));
-                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),25,cmap(movj,:),'filled')
+                scatter(repmat(mtnum,[num_tracks_mt,1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
             end 
         end
-        xlabel('MT number'), ylabel('Track start time (s)'), title([motor{mk},' ', mt_type{mtk},' Landing times on each MT'])
+        xlabel('MT number'), ylabel('Track start time (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Landing times on each MT'])
 %         xlim([0 mtnum])
         hold off
         
@@ -336,9 +360,10 @@ for mk = 1:size(motor,2)
             for mtj = 1:num_mt_mov
                 mtnum = mtnum+1;
                 num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
-                
+                mt_lengths(mtnum) = datcat(catk).mt_lengths{movj}{mtj}/1000;
                 time_bw_landing = diff(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)));
                 cum_time_bw_landing = [cum_time_bw_landing; time_bw_landing];
+                cum_time_bw_landing_by_length = [cum_time_bw_landing_by_length; time_bw_landing*mt_lengths(mtnum)];
                 if numel(time_bw_landing) > 2
                     [idx,C,sumd] = kmeans(time_bw_landing, 2);
 %                     if C(1) < C(2)
@@ -354,18 +379,18 @@ for mk = 1:size(motor,2)
 %                    
 %                     end
                     if C(1) < C(2)
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'r.','MarkerSize',12)
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
                         hold on
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'b.','MarkerSize',12)
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'b.','MarkerSize',12)
                         %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
                         %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
                     else
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'b.','MarkerSize',12)
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1).*mt_lengths(mtnum),'b.','MarkerSize',12)
                         hold on
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'r.','MarkerSize',12)
+                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
                    
                     end
-                    xlabel('MT number'), ylabel('Time between track start events (s)'), title([motor{mk},' ', mt_type{mtk},' Time between start of tracks'])
+                    xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Time between start of tracks'])
                     xlim([0 mtnum])
                     %hold off
                 end
@@ -374,14 +399,49 @@ for mk = 1:size(motor,2)
         figure,timebwlandhist = gcf;
         [deltland_n, deltland_edges]=histcounts(cum_time_bw_landing, 'BinWidth', 0.5, 'Normalization', 'pdf');
         nhist_deltland=deltland_n;
-        xhist_deltland=deltland_edges+(2/2);
+        xhist_deltland=deltland_edges+(0.5/2); %%%%%%%%%%%%%%%
         xhist_deltland(end)=[]; 
         figure(timebwlandhist), hold on 
         bar(xhist_deltland,nhist_deltland)
         xlabel('Time between landing events (s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
         hold off
-
         
+        figure,timebwlandbydisthist = gcf;
+        [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 1, 'Normalization', 'pdf');
+        nhist_deltlanddist=deltlanddist_n;
+        xhist_deltlanddist=deltlanddist_edges+(1/2);
+        xhist_deltlanddist(end)=[]; 
+        figure(timebwlandbydisthist), hold on 
+        bar(xhist_deltlanddist,nhist_deltlanddist)
+        xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
+        hold off
+        
+        %track start segment
+        if zcap == 1
+            figure,trackstartsegment=gcf; %initialize figure
+            [tkstartseg_n, tkstartseg_edges]=histcounts(datcat(catk).cum_track_start_segment, 'BinEdges', [0.5,1.5,2.5,3.5,4.5,5.5], 'Normalization', 'count');
+            nhist_tkstartseg=tkstartseg_n;
+            xhist_tkstartseg= [1,2,3,4,5];
+            %xhist_tkstartseg(end)=[]; 
+            for j = 1:size(xhist_tkstartseg,2)
+                nhist_tkstartseg(j) = nhist_tkstartseg(j)/(cum_segment_lengths(j)/1000);
+            end
+            figure(trackstartsegment), hold on 
+            bar(xhist_tkstartseg,nhist_tkstartseg)
+            set(gca,'XTick',[1,2,3,4,5], 'xticklabel',{'Plus GMP-CPP cap','Plus GDP lattice','GMP-CPP seed','Minus GDP lattice','Minus GMP-CPP cap'});
+            xlabel('MT Segment'), ylabel('Number of tracks starting in segment per unit distance (/\mum)'), title([motor{mk},' ', mt_type{mtk},' Track Start Segment'])
+
+            figure, trackstartsegmenttype=gcf;
+            nhist_tk_starttype = zeros(3,1);
+            xhist_tkstarttype = [1,2,3];
+            figure(trackstartsegmenttype), hold on 
+            nhist_tkstarttype(1) = nhist_tkstartseg(1)+nhist_tkstartseg(5);
+            nhist_tkstarttype(2) = nhist_tkstartseg(2)+nhist_tkstartseg(4);
+            nhist_tkstarttype(3) = nhist_tkstartseg(3);
+            bar(nhist_tkstarttype)
+            set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP caps','GDP lattice','GMP-CPP seed'});
+            xlabel('MT Segment Type'), ylabel('Number of tracks starting in segment per unit distance (/\mum)'), title([motor{mk},' ', mt_type{mtk},' Track Start Segment'])
+        end 
 %         failed = lifetimes(find(censored==0));
 %         nfailed = size(failed);
 %         survived = lifetimes(find(censored~=0));

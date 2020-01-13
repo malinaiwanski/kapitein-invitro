@@ -32,9 +32,9 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
-zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-zcap = 1; %set to 1 if using capped MTs
+zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
+zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zcap = 0; %set to 1 if using capped MTs
 
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -68,10 +68,10 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
-motor = 'kif1a'; %'kif5b'; %
-mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
-date = '2019-12-09'; %'2019-10-30'; %
-filenum = 1;
+motor = 'kif5b'; %'kif1a'; %
+mt_type = 'gdp_taxol'; %'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %
+date = '2019-10-30'; %'2019-12-09'; %
+filenum = 5;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -358,7 +358,9 @@ for mttk = 1:num_mts
         mts{mttk} = flipud(mts{mttk});
         interp_mts{mttk} = flipud(interp_mts{mttk});
         %disp(['flipped MT number ',num2str(mttk)])
-    end
+    
+        
+    mt_lengths{mttk} = tot_mt_length;
 end
 
 motor_on_mt = cell(nfilttracks,1);
@@ -502,7 +504,7 @@ for ftk = 1:nfilttracks
     end
     cum_mts = [cum_mts; mt_tk];
     cum_association_time = [cum_association_time; (frame_tk(end)-frame_tk(1)+1)*exp_time];
-    
+  
 end
 % profile viewer
 
@@ -519,6 +521,7 @@ end
 track_start_times = cell(num_mts,1);
 track_dist_to_plus_end = {};
 segment_indices = {};
+segment_lengths = {};
 cum_plus_cap_vel = [];
 cum_plus_gdp_vel = [];
 cum_seed_vel = [];
@@ -595,6 +598,7 @@ for mttk = 1:num_mts
                     mt_inds_to_bound = interp_mt_bound_ind:1:size(interp_mts{mttk},1);
                     dist_to_bound{mttk}(j,1) = arclength(interp_mts{mttk}(mt_inds_to_bound,1),interp_mts{mttk}(mt_inds_to_bound,2)); %distance to plus-end
                     dist_to_bound{mttk}(j,2) = j;
+ 
     %                 boundaries_on_mt{mt_tk}(j,:) = boundaries_on_mt_old{mt_tk}(points_mtend{1,1}(j),:); %boundaries ordered from closest to furthest from minus-end of MT (i.e. minus- to plus- end)
                 end
                 dist_to_bound{mttk} = sortrows(dist_to_bound{mttk},1);
@@ -604,7 +608,8 @@ for mttk = 1:num_mts
             end
             dist_along_mt = [0;dist_to_bound{mttk}(:,1);tot_mt_length];
             
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%maybe check segment lengths??
+            % find length of each segment
+            segment_lengths{mttk} = abs(diff(dist_along_mt)); %either 3 or 5 entries in order +cap, +gdp, seed(, -gdp, -cap)
             
             if size(dist_along_mt,1) == 4 
                 segment_annotate = 3;
@@ -684,8 +689,16 @@ for mttk = 1:num_mts
                     cum_track_start_segment = [cum_track_start_segment, track_start_segment];
                 end
             end
-
+            
+            %save results
+            traj(ftk_on_mt(j)).plus_cap_vel = plus_cap_vel;
+            traj(ftk_on_mt(j)).plus_gdp_vel = plus_gdp_vel;
+            traj(ftk_on_mt(j)).seed_vel = seed_vel;
+            traj(ftk_on_mt(j)).minus_gdp_vel = minus_gdp_vel;
+            traj(ftk_on_mt(j)).minus_cap_cel = minus_cap_vel;
+            traj(ftk_on_mt(j)).track_start_segment = track_start_segment;   
         end
+        
     end
 end
 % end
@@ -723,6 +736,9 @@ if zsave ~= 0
     save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
-    
-    save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment')
+    if zcap == 1
+        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths')
+    else
+        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths')
+    end
 end

@@ -22,6 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -44,9 +45,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a','kif5b'};
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'};
-date = {'2019-10-30'}; %, '2019-12-09'};
+motor = {'kif1a'}; %,'kif5b'};
+mt_type = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'};
+date = {'2019-12-09'}; %{'2019-10-30'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -98,6 +99,13 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_loc_alpha = [];
         datcat(catk).cum_norm_landing_pos = [];
         datcat(catk).cum_landing_dist_to_mt_end = [];
+        if zcap == 1
+            datcat(catk).cum_plus_cap_vel = [];
+            datcat(catk).cum_plus_gdp_vel = [];
+            datcat(catk).cum_seed_vel = [];
+            datcat(catk).cum_minus_cap_vel = [];
+            datcat(catk).cum_minus_gdp_vel = [];
+        end
         
         cum_time_bw_landing = [];
         
@@ -132,6 +140,14 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
             datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
             datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
+            if zcap == 1
+                datcat(catk).cum_plus_cap_vel = [datcat(catk).cum_plus_cap_vel; datmovk.cum_plus_cap_vel'];
+                datcat(catk).cum_plus_gdp_vel = [datcat(catk).cum_plus_gdp_vel; datmovk.cum_plus_gdp_vel'];
+                datcat(catk).cum_seed_vel = [datcat(catk).cum_seed_vel; datmovk.cum_seed_vel'];
+                datcat(catk).cum_minus_cap_vel = [datcat(catk).cum_minus_cap_vel; datmovk.cum_minus_cap_vel'];
+                datcat(catk).cum_minus_gdp_vel = [datcat(catk).cum_minus_gdp_vel; datmovk.cum_minus_gdp_vel'];
+            end
+            
         end
         
         if isempty(datcat(catk).cum_run_length) == 1

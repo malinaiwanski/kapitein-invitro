@@ -33,7 +33,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
-zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
 zcap = 1; %set to 1 if using capped MTs
 
 % Filtering
@@ -71,7 +71,7 @@ rl_binwidth = 100; %bin width for run length histograms
 motor = 'kif1a'; %'kif5b'; %
 mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
 date = '2019-12-09'; %'2019-10-30'; %
-filenum = 1;
+filenum = 4;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -724,5 +724,5 @@ if zsave ~= 0
     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     
-    save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end')
+    save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment')
 end

@@ -68,10 +68,10 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
-motor = 'kif1a'; %'kif5b'; %
-mt_type = '1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %'cap'; %
+motor = 'kif5b'; %'kif1a'; %
+mt_type = 'gdp_taxol'; %'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %
 date = '2019-10-30'; %'2019-12-09'; %
-filenum = 2;
+filenum = 5;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows

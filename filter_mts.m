@@ -85,7 +85,8 @@ end
 %FILTER: skip MTs that are too short
 if filt_short ~= 0
     for i = 1:num_mts
-        mt_length = sum(sqrt(temp_mts{i}(:,1).^2 + temp_mts{i}(:,2).^2));
+        %mt_length = sum(sqrt(temp_mts{i}(:,1).^2 + temp_mts{i}(:,2).^2));
+        mt_length = arclength(temp_mts{i}(:,1),temp_mts{i}(:,2));
         if mt_length < min_length
             cross_mts(i) = 1;
         end

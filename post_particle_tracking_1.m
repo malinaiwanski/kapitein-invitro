@@ -32,9 +32,9 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
-zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-zcap = 1; %set to 1 if using capped MTs
+zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
+zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zcap = 0; %set to 1 if using capped MTs
 
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -57,7 +57,7 @@ end_dist = 200; %maximum distance to first/last point of a MT for a spot localiz
 mt_dist = 400; %maximum distance to some MT for track to considered on a MT and thus analyzed [nm]
 analyze_mt_num = -1; %specify which MT to analyze, based on MT id in text file (these start at 0); if this is -1, all MTs will be analyzed
 mt_cross_dist = 200; %distance between points on two MTs for them to be considered too close/crossing --> filtered out [nm]
-mt_min_length = 1000; %shortest MT to be analyzed, if shorter --> filtered out [nm]
+mt_min_length = 2000; %shortest MT to be analyzed, if shorter --> filtered out [nm]
 segment_boundary_dist = 200; %distance to segment boundary (i.e. between CPP seed - GDP lattice - CPP cap) to decide if/where track crosses such a boundary [nm]
 l_window = 7; %number of frames to average for sliding MSD analysis
 msd_thresh = 1.1; %alpha-value above which is processive, below which is paused
@@ -69,9 +69,9 @@ rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a'; %'kif5b'; %
-mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
-date = '2019-12-09'; %'2019-10-30'; %
-filenum = 1;
+mt_type = '1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %'cap'; %
+date = '2019-10-30'; %'2019-12-09'; %
+filenum = 2;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -362,6 +362,12 @@ for mttk = 1:num_mts
     end
     tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));    
     mt_lengths{mttk} = tot_mt_length;
+end
+
+% delete MTs that are to be ignored
+for i = 1:size(filt_mt_ind,2)
+    mts{filt_mt_ind(size(filt_mt_ind,2)-i+1)} = [];
+    interp_mts{filt_mt_ind(size(filt_mt_ind,2)-i+1)} = [];
 end
 
 motor_on_mt = cell(nfilttracks,1);
@@ -692,9 +698,9 @@ for mttk = 1:num_mts
                     %%%%%%
                     if zplot ~= 0
                         figure
-                        plot(mt_coords(:,1),mt_coords(:,2),'-')
+                        plot(mts{mttk}(:,1),mts{mttk}(:,2),'-')
                         hold on
-                        plot(x_tk,y_tk,'.-')
+                        plot(traj(ftk_on_mt(i)).x,traj(ftk_on_mt(i)).y,'.-')
                         plot(track_on_interp_mt(:,1),track_on_interp_mt(:,2),'r.-')
                         plot(track_on_interp_mt(plus_cap_ind,1),track_on_interp_mt(plus_cap_ind,2),'m.-')
                         plot(track_on_interp_mt(plus_gdp_ind,1),track_on_interp_mt(plus_gdp_ind,2),'g.-')

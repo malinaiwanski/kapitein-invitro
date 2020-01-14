@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 1; %set to 1 if using capped MTs
+zcap = 0; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -45,9 +45,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a'}; %{'kif1a','kif5b'}; %
-mt_type = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-date = {'2019-12-09'}; %{'2019-10-30'}; %
+motor = {'kif1a','kif5b'}; %{'kif1a'}; %
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap'}; %
+date = {'2019-10-30'}; %{'2019-12-09'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -394,17 +394,21 @@ for mk = 1:size(motor,2)
         for movj = 1:num_mov
             num_mt_mov = size(datcat(catk).track_start_times{1,movj},1);
             for mtj = 1:num_mt_mov
-                mtnum = mtnum+1;
-                mt_length_temp = (datcat(catk).mt_lengths{movj}{mtj})/1000;
-%                 if ~isempty(mt_length_temp)
-                    mt_lengths(mtnum) = mt_length_temp;
-%                 end
-                num_tracks_mt(mtnum) = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
-                num_tracks_per_um_temp = num_tracks_mt(mtnum)/mt_length_temp;
-                num_tracks_per_um = [num_tracks_per_um; num_tracks_per_um_temp];
-                cmap = colormap(parula(num_mov));
-                scatter(repmat(mtnum,[num_tracks_mt(mtnum),1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
-            end 
+                if isempty(datcat(catk).mts{movj}{mtj})
+                    continue
+                else
+                    mtnum = mtnum+1;
+                    mt_length_temp = (datcat(catk).mt_lengths{movj}{mtj})/1000;
+    %                 if ~isempty(mt_length_temp)
+                        mt_lengths(mtnum) = mt_length_temp;
+    %                 end
+                    num_tracks_mt(mtnum) = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+                    num_tracks_per_um_temp = num_tracks_mt(mtnum)/mt_length_temp;
+                    num_tracks_per_um = [num_tracks_per_um; num_tracks_per_um_temp];
+                    cmap = colormap(parula(num_mov));
+                    scatter(repmat(mtnum,[num_tracks_mt(mtnum),1]), cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)).*mt_lengths(mtnum),25,cmap(movj,:),'filled')
+                end
+            end
         end
         xlabel('MT number'), ylabel('Track start time (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Landing times on each MT'])
 %         xlim([0 mtnum])
@@ -438,41 +442,45 @@ for mk = 1:size(motor,2)
         for movj = 1:num_mov
             num_mt_mov = size(datcat(catk).track_start_times{1,movj},1);
             for mtj = 1:num_mt_mov
-                mtnum = mtnum+1;
-                num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
-                mt_lengths(mtnum) = datcat(catk).mt_lengths{movj}{mtj}/1000;
-                time_bw_landing = diff(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)));
-                cum_time_bw_landing = [cum_time_bw_landing; time_bw_landing];
-                cum_time_bw_landing_by_length = [cum_time_bw_landing_by_length; time_bw_landing*mt_lengths(mtnum)];
-                if numel(time_bw_landing) > 2
-                    [idx,C,sumd] = kmeans(time_bw_landing, 2);
-%                     if C(1) < C(2)
-%                         plot(repmat(1,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'r.','MarkerSize',12)
-%                         hold on
-%                         plot(repmat(1,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'b.','MarkerSize',12)
-%                         %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
-%                         %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
-%                     else
-%                         plot(repmat(1,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'b.','MarkerSize',12)
-%                         hold on
-%                         plot(repmat(1,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'r.','MarkerSize',12)
-%                    
-%                     end
-                    if C(1) < C(2)
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
-                        hold on
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'b.','MarkerSize',12)
-                        %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
-                        %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
-                    else
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1).*mt_lengths(mtnum),'b.','MarkerSize',12)
-                        hold on
-                        plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
-                   
+                if isempty(datcat(catk).mts{movj}{mtj})
+                    continue
+                else
+                    mtnum = mtnum+1;
+                    num_tracks_mt = size(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)),1);
+                    mt_lengths(mtnum) = datcat(catk).mt_lengths{movj}{mtj}/1000;
+                    time_bw_landing = diff(cell2mat(datcat(catk).track_start_times{1,movj}(mtj,1)));
+                    cum_time_bw_landing = [cum_time_bw_landing; time_bw_landing];
+                    cum_time_bw_landing_by_length = [cum_time_bw_landing_by_length; time_bw_landing*mt_lengths(mtnum)];
+                    if numel(time_bw_landing) > 2
+                        [idx,C,sumd] = kmeans(time_bw_landing, 2);
+    %                     if C(1) < C(2)
+    %                         plot(repmat(1,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'r.','MarkerSize',12)
+    %                         hold on
+    %                         plot(repmat(1,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'b.','MarkerSize',12)
+    %                         %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
+    %                         %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
+    %                     else
+    %                         plot(repmat(1,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1),'b.','MarkerSize',12)
+    %                         hold on
+    %                         plot(repmat(1,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1),'r.','MarkerSize',12)
+    %                    
+    %                     end
+                        if C(1) < C(2)
+                            plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
+                            hold on
+                            plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'b.','MarkerSize',12)
+                            %plot(C(:,1),'kx','MarkerSize',15,'LineWidth',3) 
+                            %legend('Cluster 1','Cluster 2','Centroids', 'Location','NW')
+                        else
+                            plot(repmat(mtnum,[size(time_bw_landing(idx==1,1),1),1]),time_bw_landing(idx==1,1).*mt_lengths(mtnum),'b.','MarkerSize',12)
+                            hold on
+                            plot(repmat(mtnum,[size(time_bw_landing(idx==2,1),1),1]),time_bw_landing(idx==2,1).*mt_lengths(mtnum),'r.','MarkerSize',12)
+
+                        end
+                        xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between start of tracks'])
+                        xlim([0 mtnum])
+                        %hold off
                     end
-                    xlabel('MT number'), ylabel('Time between track start events (s*\mum)'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between start of tracks'])
-                    xlim([0 mtnum])
-                    %hold off
                 end
             end 
         end

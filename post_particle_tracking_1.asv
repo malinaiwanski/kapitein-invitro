@@ -68,7 +68,7 @@ l_min = 3; %minimum distance between two changepoints - smallest duration of pau
 rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
-motor = 'kif5b'; %'kif1a'; %
+motor = 'kif1a'; %'kif5b'; %
 mt_type = 'gdp_taxol'; %'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %
 date = '2019-10-30'; %'2019-12-09'; %
 filenum = 5;
@@ -214,6 +214,7 @@ cum_norm_landing_pos = [];
 cum_landing_dist_to_mt_end = [];
 flip_mt = zeros(1,num_mts);
 no_flip = zeros(1,num_mts);
+mt_lengths = cell(1,num_mts);
 ftk = 0; %number of tracks that passes all filtering
 
 %% Analyze
@@ -358,8 +359,8 @@ for mttk = 1:num_mts
         mts{mttk} = flipud(mts{mttk});
         interp_mts{mttk} = flipud(interp_mts{mttk});
         %disp(['flipped MT number ',num2str(mttk)])
-    
-        
+    end
+    tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));    
     mt_lengths{mttk} = tot_mt_length;
 end
 
@@ -687,6 +688,25 @@ for mttk = 1:num_mts
                     cum_minus_cap_vel = [cum_minus_cap_vel, minus_cap_vel];
                     cum_minus_gdp_vel = [cum_minus_gdp_vel, minus_gdp_vel];
                     cum_track_start_segment = [cum_track_start_segment, track_start_segment];
+                    
+                    %%%%%%
+                    if zplot ~= 0
+                        figure
+                        plot(mt_coords(:,1),mt_coords(:,2),'-')
+                        hold on
+
+                        plot(x_tk,y_tk,'.-')
+                        plot(track_on_interp_mt(:,1),track_on_interp_mt(:,2),'r.-')
+                        scatter(mts{mttk}(:,1),mts{mttk(:,2))
+                        plot(mt_coords(1,1),mt_coords(1,2),'*')
+                        plot(x_tk(1),y_tk(1),'*')
+                        if zcap ==1
+                            scatter(boundaries_on_mt{mttk}(1,1),boundaries_on_mt{mttk}(1,2),'m','filled')
+                            scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),'g','filled')
+                            scatter(boundaries_on_mt{mttk}(:,1),boundaries_on_mt{mttk}(:,2))
+                        end
+                    end
+                    %%%%%%%
                 end
             end
             

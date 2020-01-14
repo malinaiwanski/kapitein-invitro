@@ -32,9 +32,9 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
-zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
-zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-zcap = 0; %set to 1 if using capped MTs
+zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
+zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+zcap = 1; %set to 1 if using capped MTs
 
 % Filtering
 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -69,9 +69,9 @@ rl_binwidth = 100; %bin width for run length histograms
 
 %% Movie to analyze
 motor = 'kif1a'; %'kif5b'; %
-mt_type = 'gdp_taxol'; %'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %
-date = '2019-10-30'; %'2019-12-09'; %
-filenum = 5;
+mt_type = 'cap'; %'1cycle_cpp'; %'2cycle_cpp'; %'gdp_taxol'; %
+date = '2019-12-09'; %'2019-10-30'; %
+filenum = 1;
 
 %% Load data
 dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
@@ -401,22 +401,22 @@ for ftk = 1:nfilttracks
     
     tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2));
 
-    if zplot ~= 0
-        figure
-        plot(mt_coords(:,1),mt_coords(:,2),'-')
-        hold on
-
-        plot(x_tk,y_tk,'.-')
-        plot(motor_on_mt{ftk}(:,1),motor_on_mt{ftk}(:,2),'r.-')
-        scatter(mt_coords(:,1),mt_coords(:,2))
-        plot(mt_coords(1,1),mt_coords(1,2),'*')
-        plot(x_tk(1),y_tk(1),'*')
-        if zcap ==1
-            scatter(boundaries_on_mt{mt_tk}(1,1),boundaries_on_mt{mt_tk}(1,2),'m','filled')
-            scatter(boundaries_on_mt{mt_tk}(2,1),boundaries_on_mt{mt_tk}(2,2),'g','filled')
-            scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
-        end
-    end
+%     if zplot ~= 0
+%         figure
+%         plot(mt_coords(:,1),mt_coords(:,2),'-')
+%         hold on
+% 
+%         plot(x_tk,y_tk,'.-')
+%         plot(motor_on_mt{ftk}(:,1),motor_on_mt{ftk}(:,2),'r.-')
+%         scatter(mt_coords(:,1),mt_coords(:,2))
+%         plot(mt_coords(1,1),mt_coords(1,2),'*')
+%         plot(x_tk(1),y_tk(1),'*')
+%         if zcap ==1
+%             scatter(boundaries_on_mt{mt_tk}(1,1),boundaries_on_mt{mt_tk}(1,2),'m','filled')
+%             scatter(boundaries_on_mt{mt_tk}(2,1),boundaries_on_mt{mt_tk}(2,2),'g','filled')
+%             scatter(boundaries_on_mt{mt_tk}(:,1),boundaries_on_mt{mt_tk}(:,2))
+%         end
+%     end
     
     %% Project track along MT
     %finding MT/norm(MT)
@@ -688,6 +688,27 @@ for mttk = 1:num_mts
                     cum_minus_cap_vel = [cum_minus_cap_vel, minus_cap_vel];
                     cum_minus_gdp_vel = [cum_minus_gdp_vel, minus_gdp_vel];
                     cum_track_start_segment = [cum_track_start_segment, track_start_segment];
+                    
+                    %%%%%%
+                    if zplot ~= 0
+                        figure
+                        plot(mt_coords(:,1),mt_coords(:,2),'-')
+                        hold on
+                        plot(x_tk,y_tk,'.-')
+                        plot(track_on_interp_mt(:,1),track_on_interp_mt(:,2),'r.-')
+                        plot(track_on_interp_mt(plus_cap_ind,1),track_on_interp_mt(plus_cap_ind,2),'m.-')
+                        plot(track_on_interp_mt(plus_gdp_ind,1),track_on_interp_mt(plus_gdp_ind,2),'g.-')
+                        plot(track_on_interp_mt(seed_ind,1),track_on_interp_mt(seed_ind,2),'k.-')
+                        scatter(mts{mttk}(:,1),mts{mttk}(:,2))
+                        plot(mts{mttk}(1,1),mts{mttk}(1,2),'*')
+                        plot(track_on_interp_mt(1,1),track_on_interp_mt(1,2),'*')
+                        if zcap ==1
+                            scatter(boundaries_on_mt{mttk}(1,1),boundaries_on_mt{mttk}(1,2),'m','filled')
+                            scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),'g','filled')
+                            scatter(boundaries_on_mt{mttk}(:,1),boundaries_on_mt{mttk}(:,2))
+                        end
+                    end
+                    %%%%%%%
                 end
             end
             

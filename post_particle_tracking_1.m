@@ -529,6 +529,7 @@ track_start_times = cell(num_mts,1);
 track_dist_to_plus_end = {};
 segment_indices = {};
 segment_lengths = {};
+all_land_dist = [];
 cum_plus_cap_vel = [];
 cum_plus_gdp_vel = [];
 cum_seed_vel = [];
@@ -576,7 +577,43 @@ for mttk = 1:num_mts
 
             %landing rate with time
             track_start_times{mttk} = [track_start_times{mttk}; traj(ftk_on_mt(j)).frames(1)*exp_time]; %[s]
-
+            
+            %% analyzing proximity of landing of other motors to the track
+            
+            frames_to_check = traj(ftk_on_mt(j)).frames;
+            motorqpos = traj(ftk_on_mt(j)).pos_on_interpmt;
+            other_traj_ind = setdiff(ftk_on_mt,ftk_on_mt(j));
+            
+            land_tks = [];
+            land_dist  = [];
+            for framek = 1:size(frames_to_check,1)
+                [~,motorq_mtind] = ismember(interp_mts{mttk}, motorqpos(framek,:), 'rows');
+                motorq_mtind = find(motorq_mtind);
+                for jk = 1:size(other_traj_ind,1)
+                    if ~isempty(other_traj_ind) && traj(other_traj_ind(jk)).frames(1) == frames_to_check(framek)
+                        land_tks = [land_tks;other_traj_ind(jk)];
+                        [~,land_mtind] = ismember(interp_mts{mttk}, traj(other_traj_ind(jk)).pos_on_interpmt(1,:), 'rows');
+                        land_mtind = find(land_mtind);
+                        if land_mtind == motorq_mtind
+                            dist_bw = 10;
+                        else
+                            ind_temp = [land_mtind,motorq_mtind];
+                            ind_temp = sort(ind_temp);
+                            dist_ind = ind_temp(1):1:ind_temp(end);
+                            dist_bw = arclength(interp_mts{mttk}(dist_ind,1),interp_mts{mttk}(dist_ind,2));
+                        end
+                        land_dist = [land_dist; dist_bw];
+                    end
+                end
+            end
+            all_land_dist = [all_land_dist;land_dist];
+            
+            if frames_to_check(1) == 1
+                disp('track starts in frame 1')
+            else
+                
+            end
+            
 %                 figure,trackstarts=gcf; %initialize figure
 %                 [tkstart_n, tkstart_edges]=histcounts(cum_run_length, 'BinWidth', tkstart_binwidth, 'Normalization', 'pdf');
 %                 nhist_tkstart=tkstart_n;
@@ -729,7 +766,21 @@ for mttk = 1:num_mts
         
     end
 end
+
+% plot landing rate 
+all_land_dist = floor(all_land_dist./1000); % see if landing motors are within 0-1um, 1-2um, 2-3um, ... away         
+[landdist_n, landdist_edges]=histcounts(all_land_dist, 'BinWidth', 1, 'Normalization', 'count');
+nhist_landdist=landdist_n./(exp_time*(tot_mt_length/1000)); %wrong normalization - using same MT length for all
+xhist_landdist=landdist_edges+(1/2);
+xhist_landdist(end)=[]; 
+figure
+plot(xhist_landdist,nhist_landdist,'o','MarkerEdgeColor','k','MarkerFaceColor','k','MarkerSize',16)
+hold on 
+xlabel('Distance from motor (\mum)'), ylabel('Landing rate (/\mum /s)'), title([motor,' ', mt_type,' Landing analysis'])
+
 % end
+
+
 
 
 %% Plot parameters to check data
@@ -765,8 +816,8 @@ if zsave ~= 0
     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
     if zcap == 1
-        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths')
+        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_land_dist','xhist_landdist','nhist_landdist')
     else
-        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths')
+        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_land_dist','xhist_landdist','nhist_landdist')
     end
 end

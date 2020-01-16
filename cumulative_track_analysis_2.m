@@ -58,13 +58,14 @@ if zplot ~= 0
     figure,instvel=gcf; %initialize figure
     figure,procvel=gcf; %initialize figure
     figure,landpos = gcf;
-     figure,normlandpos = gcf;
-     figure, landtime = gcf;
-     figure,numtracks = gcf;
-     figure,numtracksmt = gcf;
-     figure, timebwland = gcf;
-     figure,timebwlandhist = gcf;
-     figure,timebwlandbydisthist = gcf;
+    figure,normlandpos = gcf;
+    figure, landtime = gcf;
+    figure,numtracks = gcf;
+    figure,numtracksmt = gcf;
+    figure, timebwland = gcf;
+    figure,timebwlandhist = gcf;
+    figure,timebwlandbydisthist = gcf;
+    figure, landrelativemotor = gcf;
     if zcap == 1
         figure,segmentvel=gcf; %initialize figure 
         figure,segmenttypevel=gcf; %initialize figure 
@@ -527,7 +528,6 @@ for mk = 1:size(motor,2)
         xlabel('Time between landing events (s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
         hold off
         
-        
         [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 5, 'Normalization', 'pdf');
         nhist_deltlanddist=deltlanddist_n;
         xhist_deltlanddist=deltlanddist_edges+(1/2);
@@ -538,6 +538,10 @@ for mk = 1:size(motor,2)
         hold on 
         xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between landing events'])
         hold off
+        
+        % landing position relative to other motors
+        figure(landrelativemotor)
+        subplot(size(motor,2),size(mt_type,2),catk)
         
         %track start segment
         if zcap == 1

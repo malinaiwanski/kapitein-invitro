@@ -628,19 +628,31 @@ for master_date_ind = 1:size(dates,2)
                                         if land_mtind == motorq_mtind
                                             dist_bw = 10; %if they are assigned to the same interp_mt index, they are at most 10nm apart
                                             neg_dist = 0; %assume towards plus end
-                                            norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
-                                            norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end, motor landed ahead of motorq
+                                            if motorq_mtind == size(interp_mts{mttk},1)
+                                                norm_dist = 10;
+                                            else
+                                                norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
+                                                norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end, motor landed ahead of motorq
+                                            end
                                         else
                                             ind_temp = [land_mtind,motorq_mtind];
                                             ind_temp = sort(ind_temp);
                                             if ind_temp(1) == land_mtind
                                                 neg_dist = 1;
-                                                norm_ind = 1:1:motorq_mtind;
-                                                norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to minus end, motor landed behind motorq
+                                                if motorq_mtind == 1
+                                                    norm_dist = 10;
+                                                else
+                                                    norm_ind = 1:1:motorq_mtind;
+                                                    norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to minus end, motor landed behind motorq
+                                                end
                                             else
                                                 neg_dist = 0;
-                                                norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
-                                                norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end, motor landed ahead of motorq
+                                                if motorq_mtind == size(interp_mts{mttk},1)
+                                                    norm_dist = 10;
+                                                else
+                                                    norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
+                                                    norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end, motor landed ahead of motorq
+                                                end
                                             end
                                             dist_ind = ind_temp(1):1:ind_temp(end);
                                             dist_bw = arclength(interp_mts{mttk}(dist_ind,1),interp_mts{mttk}(dist_ind,2));
@@ -884,9 +896,9 @@ for master_date_ind = 1:size(dates,2)
                     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     end
                 end
             end

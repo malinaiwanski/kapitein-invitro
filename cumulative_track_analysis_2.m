@@ -66,6 +66,7 @@ if zplot ~= 0
     figure,timebwlandhist = gcf;
     figure,timebwlandbydisthist = gcf;
     figure, landrelativemotor = gcf;
+    figure, landrelativemotorviolin = gcf;
     if zcap == 1
         figure,segmentvel=gcf; %initialize figure 
         figure,segmenttypevel=gcf; %initialize figure 
@@ -124,6 +125,9 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_loc_alpha = [];
         datcat(catk).cum_norm_landing_pos = [];
         datcat(catk).cum_landing_dist_to_mt_end = [];
+        datcat(catk).all_land_dist = [];
+        datcat(catk).tot_xhist_landdist = [];
+        datcat(catk).tot_nhist_landdist = [];
         if zcap == 1
             datcat(catk).cum_plus_cap_vel = [];
             datcat(catk).cum_plus_gdp_vel = [];
@@ -178,6 +182,9 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
             datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
             datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
+            datcat(catk).all_land_dist = [datcat(catk).all_land_dist; datmovk.all_land_dist];
+            datcat(catk).tot_xhist_landdist = [datcat(catk).tot_xhist_landdist, datmovk.tot_xhist_landdist];
+            datcat(catk).tot_nhist_landdist = [datcat(catk).tot_nhist_landdist, datmovk.tot_nhist_landdist];
             if zcap == 1
                 datcat(catk).cum_plus_cap_vel = [datcat(catk).cum_plus_cap_vel; datmovk.cum_plus_cap_vel'];
                 datcat(catk).cum_plus_gdp_vel = [datcat(catk).cum_plus_gdp_vel; datmovk.cum_plus_gdp_vel'];
@@ -540,8 +547,26 @@ for mk = 1:size(motor,2)
         hold off
         
         % landing position relative to other motors
+        land_dist_to_motor = unique(datcat(catk).tot_xhist_landdist); %in sorted order
+        num_of_dist = cell(length(land_dist_to_motor),1);
+        for idist = 0:(land_dist_to_motor(end)-1/2)
+            num_of_dist{idist+1} = datcat(catk).tot_nhist_landdist(find(datcat(catk).tot_xhist_landdist == idist));
+        end
+        
         figure(landrelativemotor)
         subplot(size(motor,2),size(mt_type,2),catk)
+        plot(datcat(catk).tot_xhist_landdist,datcat(catk).tot_nhist_landdist,'o','MarkerEdgeColor','k','MarkerFaceColor','k','MarkerSize',4)
+        hold on 
+        xlabel('Distance from motor (\mum)'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing analysis'])
+        hold off
+        
+        figure(landrelativemotorviolin)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        violinplot(datcat(catk).tot_nhist_landdist,datcat(catk).tot_xhist_landdist)
+        hold on 
+        xlabel('Distance from motor (\mum)'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing analysis'])
+        hold off
+        
         
         %track start segment
         if zcap == 1

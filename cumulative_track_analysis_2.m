@@ -619,6 +619,7 @@ for mk = 1:size(motor,2)
         bar(xhist_landing_distances,nhist_landing_distances)
         hold on 
         xlabel('Landing distance from existing track (nm)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing distance from existing track'])
+        xlim([-3500, 3500])
         hold off
         
         %normalized landing distance to existing track

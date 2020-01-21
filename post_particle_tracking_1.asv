@@ -553,6 +553,8 @@ for master_date_ind = 1:size(dates,2)
                 all_landing_dist = []; %not grouped by um
                 all_norm_landing_dist = []; %all_landing_dist but normalized by distance from track of interest to MT end that motor lands towards
                 all_mt_landing_dist = []; %all_landing_dist but normalized by total MT length
+                all_dist_to_minus = [];
+                all_dist_to_plus = [];
 %                 tot_nhist_landdist = [];
 %                 tot_xhist_landdist = [];
 %                 n_ld_all = [];
@@ -626,68 +628,72 @@ for master_date_ind = 1:size(dates,2)
                                     motor_to_minus = 10;
                                 else
                                     motor_to_minus_ind = 1:1:motorq_mtind;
-                                    motor_to_minus = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to minus end
+                                    motor_to_minus = arclength(interp_mts{mttk}(motor_to_minus_ind,1),interp_mts{mttk}(motor_to_minus_ind,2)); %distance to minus end
                                 end
                                 if motorq_mtind == size(interp_mts{mttk},1)
                                     motor_to_plus = 10;
                                 else
                                     motor_to_plus_ind = motorq_mtind:1:size(interp_mts{mttk},1);
-                                    motor_to_plus = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end
+                                    motor_to_plus = arclength(interp_mts{mttk}(motor_to_plus_ind,1),interp_mts{mttk}(motor_to_plus_ind,2)); %distance to plus end
                                 end
-                                
-                                for jk = 1:size(other_traj_ind,1)
-                                    if ~isempty(other_traj_ind) && traj(other_traj_ind(jk)).frames(1) == frames_to_check(framek)
-%                                         calc_dist = 1;
-%                                         land_tks = [land_tks;other_traj_ind(jk)];
-                                        [~,land_mtind] = ismember(interp_mts{mttk}, traj(other_traj_ind(jk)).pos_on_interpmt(1,:), 'rows');
-                                        land_mtind = find(land_mtind);
-                                        if land_mtind == motorq_mtind
-                                            dist_bw = 10; %if they are assigned to the same interp_mt index, they are at most 10nm apart
-                                            neg_dist = 0; %assume towards plus end
-                                            norm_dist = motor_to_plus;
-%                                             if motorq_mtind == size(interp_mts{mttk},1)
-%                                                 norm_dist = 10;
-%                                             else
-%                                                 norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
-%                                                 norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end, motor landed ahead of motorq
-%                                             end
-                                        else
-                                            ind_temp = [land_mtind,motorq_mtind];
-                                            ind_temp = sort(ind_temp);
-                                            if ind_temp(1) == land_mtind %motor landed behind motorq (i.e. between motor and minus-end)
-                                                neg_dist = 1;
-                                                norm_dist = motor_to_minus;
-%                                                 if motorq_mtind == 1
-%                                                     norm_dist = 10;
-%                                                 else
-%                                                     norm_ind = 1:1:motorq_mtind;
-%                                                     norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to minus end
-%                                                 end
-                                            else %motor landed ahead of motorq (i.e. between motor and plus-end)
-                                                neg_dist = 0;
+                                if motor_to_minus <5000 || motor_to_plus < 5000
+                                    continue
+                                else
+                                    for jk = 1:size(other_traj_ind,1)
+                                        if ~isempty(other_traj_ind) && traj(other_traj_ind(jk)).frames(1) == frames_to_check(framek)
+    %                                         calc_dist = 1;
+    %                                         land_tks = [land_tks;other_traj_ind(jk)];
+                                            [~,land_mtind] = ismember(interp_mts{mttk}, traj(other_traj_ind(jk)).pos_on_interpmt(1,:), 'rows');
+                                            land_mtind = find(land_mtind);
+                                            if land_mtind == motorq_mtind
+                                                dist_bw = 10; %if they are assigned to the same interp_mt index, they are at most 10nm apart
+                                                neg_dist = 0; %assume towards plus end
                                                 norm_dist = motor_to_plus;
-%                                                 if motorq_mtind == size(interp_mts{mttk},1)
-%                                                     norm_dist = 10;
-%                                                 else
-%                                                     norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
-%                                                     norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end
-%                                                 end
+    %                                             if motorq_mtind == size(interp_mts{mttk},1)
+    %                                                 norm_dist = 10;
+    %                                             else
+    %                                                 norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
+    %                                                 norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end, motor landed ahead of motorq
+    %                                             end
+                                            else
+                                                ind_temp = [land_mtind,motorq_mtind];
+                                                ind_temp = sort(ind_temp);
+                                                if ind_temp(1) == land_mtind %motor landed behind motorq (i.e. between motor and minus-end)
+                                                    neg_dist = 1;
+                                                    norm_dist = motor_to_minus;
+    %                                                 if motorq_mtind == 1
+    %                                                     norm_dist = 10;
+    %                                                 else
+    %                                                     norm_ind = 1:1:motorq_mtind;
+    %                                                     norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to minus end
+    %                                                 end
+                                                else %motor landed ahead of motorq (i.e. between motor and plus-end)
+                                                    neg_dist = 0;
+                                                    norm_dist = motor_to_plus;
+    %                                                 if motorq_mtind == size(interp_mts{mttk},1)
+    %                                                     norm_dist = 10;
+    %                                                 else
+    %                                                     norm_ind = motorq_mtind:1:size(interp_mts{mttk},1);
+    %                                                     norm_dist = arclength(interp_mts{mttk}(norm_ind,1),interp_mts{mttk}(norm_ind,2)); %distance to plus end
+    %                                                 end
+                                                end
+                                                dist_ind = ind_temp(1):1:ind_temp(end);
+                                                dist_bw = arclength(interp_mts{mttk}(dist_ind,1),interp_mts{mttk}(dist_ind,2));
+                                                if neg_dist == 1
+                                                    dist_bw = -1*dist_bw;
+                                                end
                                             end
-                                            dist_ind = ind_temp(1):1:ind_temp(end);
-                                            dist_bw = arclength(interp_mts{mttk}(dist_ind,1),interp_mts{mttk}(dist_ind,2));
-                                            if neg_dist == 1
-                                                dist_bw = -1*dist_bw;
+                                            if dist_bw <= 5000
+                                            norm_dist_bw = dist_bw/norm_dist;
+                                            mt_dist_bw = dist_bw/tot_mt_length;
+    %                                         land_dist = [land_dist; dist_bw]; %for all frames in one track
+                                            all_landing_dist = [all_landing_dist; dist_bw];
+                                            all_norm_landing_dist = [all_norm_landing_dist;norm_dist_bw];
+                                            all_mt_landing_dist = [all_mt_landing_dist;mt_dist_bw];
                                             end
+    %                                     else
+    %                                         calc_dist = 0;
                                         end
-                                        norm_dist_bw = dist_bw/norm_dist;
-                                        mt_dist_bw = dist_bw/tot_mt_length;
-%                                         land_dist = [land_dist; dist_bw]; %for all frames in one track
-                                        all_landing_dist = [all_landing_dist; dist_bw];
-                                        all_norm_landing_dist = [all_norm_landing_dist;norm_dist_bw];
-                                        all_mt_landing_dist = [all_mt_landing_dist;mt_dist_bw];
-                                        all_dist_to_plus = [all_dist_to_plus
-%                                     else
-%                                         calc_dist = 0;
                                     end
                                 end
 %                                 if ~isempty(other_traj_ind) && calc_dist == 1
@@ -698,6 +704,8 @@ for master_date_ind = 1:size(dates,2)
 %                                     xhist_ld(end)=[]; 
 % %                                     all_landing_dist = [all_landing_dist;land_dist];
 %                                 end
+                                all_dist_to_plus = [all_dist_to_plus; motor_to_plus];
+                                all_dist_to_minus = [all_dist_to_minus; motor_to_minus];
                             end
                             
 %                             discretized_land_dist = floor(land_dist./1000); % see if landing motors are within 0-1um, 1-2um, 2-3um, ... away         
@@ -920,9 +928,9 @@ for master_date_ind = 1:size(dates,2)
                     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     end
                 end
             end

@@ -66,13 +66,14 @@ if zplot ~= 0
     figure, timebwland = gcf;
     figure,timebwlandhist = gcf;
     figure,timebwlandbydisthist = gcf;
+    figure, landingdeltime = gcf;
 %     figure, landrelativemotor = gcf;
 %     figure, landrelativemotorviolin = gcf;
 %     figure, ldrelmot = gcf;
     figure, mtlengthfrommotor = gcf;
     figure, landingdistancetomotor = gcf;
-    figure, normlandingdistancetomotor = gcf;
-    figure, normmtlandingdistancetomotor = gcf;
+%     figure, normlandingdistancetomotor = gcf;
+%     figure, normmtlandingdistancetomotor = gcf;
     if zcap == 1
         figure,segmentvel=gcf; %initialize figure 
         figure,segmenttypevel=gcf; %initialize figure 
@@ -131,16 +132,12 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_loc_alpha = [];
         datcat(catk).cum_norm_landing_pos = [];
         datcat(catk).cum_landing_dist_to_mt_end = [];
-%         datcat(catk).all_land_dist = [];
-%         datcat(catk).tot_xhist_landdist = [];
-%         datcat(catk).tot_nhist_landdist = [];
         datcat(catk).all_landing_dist = [];
-        datcat(catk).all_norm_landing_dist = [];
-        datcat(catk).all_mt_landing_dist = [];
+%         datcat(catk).all_norm_landing_dist = [];
+%         datcat(catk).all_mt_landing_dist = [];
         datcat(catk).all_dist_to_plus = [];
         datcat(catk).all_dist_to_minus = [];
-%         datcat(catk).x_ld_all = [];
-%         datcat(catk).n_ld_all = [];
+        datcat(catk).all_time_diff_bw_land = [];
         if zcap == 1
             datcat(catk).cum_plus_cap_vel = [];
             datcat(catk).cum_plus_gdp_vel = [];
@@ -195,16 +192,12 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
             datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
             datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
-%             datcat(catk).all_land_dist = [datcat(catk).all_land_dist; datmovk.all_land_dist];
-%             datcat(catk).tot_xhist_landdist = [datcat(catk).tot_xhist_landdist, datmovk.tot_xhist_landdist];
-%             datcat(catk).tot_nhist_landdist = [datcat(catk).tot_nhist_landdist, datmovk.tot_nhist_landdist];
             datcat(catk).all_landing_dist = [datcat(catk).all_landing_dist; datmovk.all_landing_dist];
-            datcat(catk).all_norm_landing_dist = [datcat(catk).all_norm_landing_dist; datmovk.all_norm_landing_dist];
-            datcat(catk).all_mt_landing_dist = [datcat(catk).all_mt_landing_dist; datmovk.all_mt_landing_dist];
+%             datcat(catk).all_norm_landing_dist = [datcat(catk).all_norm_landing_dist; datmovk.all_norm_landing_dist];
+%             datcat(catk).all_mt_landing_dist = [datcat(catk).all_mt_landing_dist; datmovk.all_mt_landing_dist];
             datcat(catk).all_dist_to_minus = [datcat(catk).all_dist_to_minus; datmovk.all_dist_to_minus];
             datcat(catk).all_dist_to_plus = [datcat(catk).all_dist_to_plus; datmovk.all_dist_to_plus];
-%             datcat(catk).x_ld_all = [datcat(catk).x_ld_all; datmovk.x_ld_all];
-%             datcat(catk).n_ld_all = [datcat(catk).n_ld_all; datmovk.n_ld_all];
+            datcat(catk).all_time_diff_bw_land = [datcat(catk).all_time_diff_bw_land; datmovk.all_time_diff_bw_land];
             if zcap == 1
                 datcat(catk).cum_plus_cap_vel = [datcat(catk).cum_plus_cap_vel; datmovk.cum_plus_cap_vel'];
                 datcat(catk).cum_plus_gdp_vel = [datcat(catk).cum_plus_gdp_vel; datmovk.cum_plus_gdp_vel'];
@@ -546,7 +539,7 @@ for mk = 1:size(motor,2)
         end
         [deltland_n, deltland_edges]=histcounts(cum_time_bw_landing, 'BinWidth', 0.5, 'Normalization', 'pdf');
         nhist_deltland=deltland_n;
-        xhist_deltland=deltland_edges+(0.5/2); %%%%%%%%%%%%%%%
+        xhist_deltland=deltland_edges+(0.5/2);
         xhist_deltland(end)=[]; 
         figure(timebwlandhist)
         subplot(size(motor,2),size(mt_type,2),catk)
@@ -565,34 +558,13 @@ for mk = 1:size(motor,2)
         hold on 
         xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between landing events'])
         hold off
-        
-        % landing position relative to other motors
-%         land_dist_to_motor = unique(datcat(catk).tot_xhist_landdist); %in sorted order
-%         num_of_dist = cell(length(land_dist_to_motor),1);
-%         for idist = 0:(land_dist_to_motor(end)-1/2)
-%             num_of_dist{idist+1} = datcat(catk).tot_nhist_landdist(find(datcat(catk).tot_xhist_landdist == idist));
-%         end
-        
-%         figure(landrelativemotor)
-%         subplot(size(motor,2),size(mt_type,2),catk)
-%         plot(datcat(catk).tot_xhist_landdist,datcat(catk).tot_nhist_landdist,'o','MarkerEdgeColor','k','MarkerFaceColor','k','MarkerSize',4)
-%         hold on 
-%         xlabel('Distance from motor (\mum)'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing analysis'])
-%         hold off
-%         
+         
 %         figure(landrelativemotorviolin)
 %         subplot(size(motor,2),size(mt_type,2),catk)
 %         violinplot(datcat(catk).tot_nhist_landdist,datcat(catk).tot_xhist_landdist)
 %         hold on 
 %         xlabel('Distance from motor (\mum)'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing analysis'])
 %         hold off
-%         
-%         figure(ldrelmot)
-%         subplot(size(motor,2),size(mt_type,2),catk)
-%         plot(datcat(catk).x_ld_all,datcat(catk).n_ld_all,'o','MarkerEdgeColor','k','MarkerFaceColor','k','MarkerSize',4)
-%         hold on 
-%         xlabel('Distance from motor (\mum)'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing analysis'])
-%         hold off   
 
         %MT length on either side of motor
         datcat(catk).all_dist_to_minus = -1.*datcat(catk).all_dist_to_minus;
@@ -622,29 +594,41 @@ for mk = 1:size(motor,2)
         xlim([-3500, 3500])
         hold off
         
-        %normalized landing distance to existing track
-        [norm_landing_distances_n, norm_landing_distances_edges]=histcounts(datcat(catk).all_norm_landing_dist, 'BinWidth', 0.1, 'Normalization', 'count');
-        nhist_norm_landing_distances=norm_landing_distances_n;
-        xhist_norm_landing_distances=norm_landing_distances_edges+(0.1/2);
-        xhist_norm_landing_distances(end)=[]; 
-        figure(normlandingdistancetomotor)
+        %time difference between landings
+        [landing_delt_n, landing_delt_edges]=histcounts(datcat(catk).all_time_diff_bw_land, 'BinWidth', 1, 'Normalization', 'count');
+        nhist_landing_delt=landing_delt_n;
+        xhist_landing_delt=landing_delt_edges+(1/2);
+        xhist_landing_delt(end)=[]; 
+        figure(landingdeltime)
         subplot(size(motor,2),size(mt_type,2),catk)
-        bar(xhist_norm_landing_distances,nhist_norm_landing_distances)
+        bar(xhist_landing_delt,nhist_landing_delt)
         hold on 
-        xlabel('Normalized landing distance from existing track'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized landing distance from existing track (MT side with motor)'])
+        xlabel('Time between landings (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landings within 5um'])
         hold off
         
-        %normalized landing distance to existing track
-        [norm_mt_landing_distances_n, norm_mt_landing_distances_edges]=histcounts(datcat(catk).all_mt_landing_dist, 'BinWidth', 0.1, 'Normalization', 'count');
-        nhist_norm_mt_landing_distances=norm_mt_landing_distances_n;
-        xhist_norm_mt_landing_distances=norm_mt_landing_distances_edges+(0.1/2);
-        xhist_norm_mt_landing_distances(end)=[]; 
-        figure(normmtlandingdistancetomotor)
-        subplot(size(motor,2),size(mt_type,2),catk)
-        bar(xhist_norm_mt_landing_distances,nhist_norm_mt_landing_distances)
-        hold on 
-        xlabel('Normalized landing distance from existing track'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized landing distance from existing track (full MT)'])
-        hold off
+%         %normalized landing distance to existing track
+%         [norm_landing_distances_n, norm_landing_distances_edges]=histcounts(datcat(catk).all_norm_landing_dist, 'BinWidth', 0.1, 'Normalization', 'count');
+%         nhist_norm_landing_distances=norm_landing_distances_n;
+%         xhist_norm_landing_distances=norm_landing_distances_edges+(0.1/2);
+%         xhist_norm_landing_distances(end)=[]; 
+%         figure(normlandingdistancetomotor)
+%         subplot(size(motor,2),size(mt_type,2),catk)
+%         bar(xhist_norm_landing_distances,nhist_norm_landing_distances)
+%         hold on 
+%         xlabel('Normalized landing distance from existing track'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized landing distance from existing track (MT side with motor)'])
+%         hold off
+%         
+%         %normalized landing distance to existing track
+%         [norm_mt_landing_distances_n, norm_mt_landing_distances_edges]=histcounts(datcat(catk).all_mt_landing_dist, 'BinWidth', 0.1, 'Normalization', 'count');
+%         nhist_norm_mt_landing_distances=norm_mt_landing_distances_n;
+%         xhist_norm_mt_landing_distances=norm_mt_landing_distances_edges+(0.1/2);
+%         xhist_norm_mt_landing_distances(end)=[]; 
+%         figure(normmtlandingdistancetomotor)
+%         subplot(size(motor,2),size(mt_type,2),catk)
+%         bar(xhist_norm_mt_landing_distances,nhist_norm_mt_landing_distances)
+%         hold on 
+%         xlabel('Normalized landing distance from existing track'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized landing distance from existing track (full MT)'])
+%         hold off
 
         %track start segment
         if zcap == 1

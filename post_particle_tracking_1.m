@@ -530,6 +530,7 @@ for master_date_ind = 1:size(dates,2)
                 all_norm_landing_dist = []; %all_landing_dist but normalized by distance from track of interest to MT end that motor lands towards
                 all_mt_landing_dist = []; %all_landing_dist but normalized by total MT length
                 all_time_diff_bw_land = []; %stores time between landing events of motors that are within 3um of each other when the later motor lands
+                time_diff_bw_land = cell(1,num_mts);
                 all_dist_to_minus = [];
                 all_dist_to_plus = [];
                 cum_plus_cap_vel = [];
@@ -665,6 +666,9 @@ for master_date_ind = 1:size(dates,2)
                                 for jk = 1:size(other_traj_ind,1)
                                     if ~isempty(other_traj_ind) && traj(other_traj_ind(jk)).position_on_mt(1) <= 6000 %also lands within first 6um of MT
                                         all_time_diff_bw_land = [all_time_diff_bw_land; (traj(other_traj_ind(jk)).frames(1)-traj(ftk_on_mt(j)).frames(1))*exp_time]; %[s]
+                                        time_diff_bw_land{mttk} = [time_diff_bw_land{mttk}; (traj(other_traj_ind(jk)).frames(1)-traj(ftk_on_mt(j)).frames(1))*exp_time]; %[s]
+                                        %PUT MATCHING DISTANCE B/W LANDING
+                                        %HERE!!! %%%%%%%%%
                                     end
                                 end
                             end
@@ -849,9 +853,9 @@ for master_date_ind = 1:size(dates,2)
                     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     end
                 end
             end

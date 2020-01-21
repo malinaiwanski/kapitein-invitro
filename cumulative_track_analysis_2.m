@@ -67,6 +67,7 @@ if zplot ~= 0
     figure,timebwlandhist = gcf;
     figure,timebwlandbydisthist = gcf;
     figure, landingdeltime = gcf;
+    figure, landingdeltimeviolin = gcf;
 %     figure, landrelativemotor = gcf;
 %     figure, landrelativemotorviolin = gcf;
 %     figure, ldrelmot = gcf;
@@ -138,6 +139,7 @@ for mk = 1:size(motor,2)
         datcat(catk).all_dist_to_plus = [];
         datcat(catk).all_dist_to_minus = [];
         datcat(catk).all_time_diff_bw_land = [];
+        datcat(catk).time_diff_bw_land = {};
         if zcap == 1
             datcat(catk).cum_plus_cap_vel = [];
             datcat(catk).cum_plus_gdp_vel = [];
@@ -198,6 +200,7 @@ for mk = 1:size(motor,2)
             datcat(catk).all_dist_to_minus = [datcat(catk).all_dist_to_minus; datmovk.all_dist_to_minus];
             datcat(catk).all_dist_to_plus = [datcat(catk).all_dist_to_plus; datmovk.all_dist_to_plus];
             datcat(catk).all_time_diff_bw_land = [datcat(catk).all_time_diff_bw_land; datmovk.all_time_diff_bw_land];
+            datcat(catk).time_diff_bw_land{movk} = datmovk.time_diff_bw_land;
             if zcap == 1
                 datcat(catk).cum_plus_cap_vel = [datcat(catk).cum_plus_cap_vel; datmovk.cum_plus_cap_vel'];
                 datcat(catk).cum_plus_gdp_vel = [datcat(catk).cum_plus_gdp_vel; datmovk.cum_plus_gdp_vel'];
@@ -604,6 +607,23 @@ for mk = 1:size(motor,2)
         bar(xhist_landing_delt,nhist_landing_delt)
         hold on 
         xlabel('Time between landings (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landings within 5um'])
+        hold off
+        
+        delta_t = [];
+        mt_cat = [];
+        mt_plot_ind = 0;
+        for i = 1:size(datcat(catk).time_diff_bw_land,2)
+            for j = 1: size(datcat(catk).time_diff_bw_land{1,i},2)
+                mt_plot_ind = mt_plot_ind +1;
+                delta_t = [delta_t; datcat(catk).time_diff_bw_land{1,i}{1,j}];
+                mt_cat = [mt_cat; repmat(mt_plot_ind,size(datcat(catk).time_diff_bw_land{1,i}{1,j},1),1)];
+            end
+        end
+        figure(landingdeltimeviolin)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        violinplot(delta_t,mt_cat)
+        hold on 
+        xlabel('MT'), ylabel('Time between landings (s)'), title([motor{mk},' ', mt_type{mtk},' Time between landing in first 6\mum of MT'])
         hold off
         
 %         %normalized landing distance to existing track

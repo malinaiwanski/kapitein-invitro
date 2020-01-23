@@ -8,8 +8,6 @@
 % TO DO:
 % in filter_mts, filter out MTs that run out of edge of FOV
 % landing rate per MT with time (also for whole MT for whole movie div by L MT and L mov)
-% starting site of run
-% identify which MT segment boundary is on
 
 %% This code reads in output from the DoM Utrecht plug-in for detection and tracking of particles for a single movie.
 % It reads in all the data and re-organizes it into a format used by cumulative_track_analysis_2.

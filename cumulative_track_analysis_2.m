@@ -71,6 +71,7 @@ if zplot ~= 0
 %     figure, landrelativemotorviolin = gcf;
 %     figure, ldrelmot = gcf;
     figure, mtlengthfrommotor = gcf;
+    figure, totmtlength = gcf;
     figure, landingdistancetomotor = gcf;
 %     figure, normlandingdistancetomotor = gcf;
 %     figure, normmtlandingdistancetomotor = gcf;
@@ -579,7 +580,19 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_mtlength,nhist_mtlength)
         hold on 
-        xlabel('Length of MT away from motor (nm)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Length of MT on either side of motor'])
+        xlabel('Length of MT away from motor (nm)'), ylabel('Fraction'), title([motor{mk},' ', mt_type{mtk},' Length of MT on either side of motor'])
+        hold off
+        
+        % total MT lengths
+        [totmtlength_n, totmtlength_edges]=histcounts(mt_lengths, 'BinWidth', 1, 'Normalization', 'probability');
+        nhist_totmtlength=totmtlength_n;
+        xhist_totmtlength=totmtlength_edges+(1/2);
+        xhist_totmtlength(end)=[]; 
+        figure(totmtlength)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_totmtlength,nhist_totmtlength)
+        hold on 
+        xlabel('Length of MT (\mum)'), ylabel('Fraction'), title([motor{mk},' ', mt_type{mtk},' Length of MTs'])
         hold off
         
         %landing distance to existing track
@@ -592,7 +605,7 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_landing_distances,nhist_landing_distances)
         hold on 
-        xlabel('Landing distance from existing track (nm)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing distance from existing track'])
+        xlabel('Landing distance from existing track (nm)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing distance from existing track']), hold on
         xlim([-3500, 3500])
         hold off
         
@@ -605,7 +618,8 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_landing_delt,nhist_landing_delt)
         hold on 
-        xlabel('Time between landings (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landings within 5um'])
+        xlabel('Time between landings (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landings within 6\mum'])
+        xlim([0 60])
         hold off
         
         delta_t = [];
@@ -620,7 +634,8 @@ for mk = 1:size(motor,2)
         end
         figure(landingdeltimeviolin)
         subplot(size(motor,2),size(mt_type,2),catk)
-        violinplot(delta_t,mt_cat)
+        plot(mt_cat,delta_t,'.','MarkerSize',12)
+%         violinplot(delta_t,mt_cat)
         hold on 
         xlabel('MT'), ylabel('Time between landings (s)'), title([motor{mk},' ', mt_type{mtk},' Time between landing in first 6\mum of MT'])
         hold off

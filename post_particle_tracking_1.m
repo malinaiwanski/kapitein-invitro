@@ -30,9 +30,9 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
-motors = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_types = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap'}; %
-dates = {'2019-10-30'}; %{'2019-12-09'}; %
+motors = {'kif1a'}; %{'kif1a','kif5b'}; %
+mt_types = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+dates = {'2019-12-09'}; %{'2019-10-30'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -59,9 +59,9 @@ for master_date_ind = 1:size(dates,2)
                 close all
                 
                 %% Options (make 0 to NOT perform related action, 1 to perform)
-                zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
-                zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-                zcap = 0; %set to 1 if using capped MTs
+                zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
+                zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+                zcap = 1; %set to 1 if using capped MTs
 
                 % Filtering
                 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section

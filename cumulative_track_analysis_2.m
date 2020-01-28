@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -45,9 +45,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap'}; %
-date = {'2019-10-30'}; %{'2019-12-09'}; %
+motor = {'kif1a'}; %{'kif1a','kif5b'}; %
+mt_type = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+date = {'2019-12-09'}; %{'2019-10-30'}; %
 
 %% Initialize figures
 if zplot ~= 0

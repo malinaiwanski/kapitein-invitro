@@ -59,8 +59,8 @@ for master_date_ind = 1:size(dates,2)
                 close all
                 
                 %% Options (make 0 to NOT perform related action, 1 to perform)
-                zplot = 1; %set to 1 to visualize trajectories, kymographs, etc.
-                zsave = 0; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
+                zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
+                zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
                 zcap = 1; %set to 1 if using capped MTs
 
                 % Filtering
@@ -781,20 +781,20 @@ for master_date_ind = 1:size(dates,2)
                                     %%%%%%
                                     if zplot ~= 0
                                         figure
-                                        plot(mts{mttk}(:,1),mts{mttk}(:,2),'-')
+                                        plot(mts{mttk}(:,1),mts{mttk}(:,2),'-','LineWidth',3)
                                         hold on
-                                        plot(traj(ftk_on_mt(i)).x,traj(ftk_on_mt(i)).y,'.-')
-                                        plot(track_on_interp_mt(:,1),track_on_interp_mt(:,2),'r.-')
-                                        plot(track_on_interp_mt(plus_cap_ind,1),track_on_interp_mt(plus_cap_ind,2),'m.-')
-                                        plot(track_on_interp_mt(plus_gdp_ind,1),track_on_interp_mt(plus_gdp_ind,2),'g.-')
-                                        plot(track_on_interp_mt(seed_ind,1),track_on_interp_mt(seed_ind,2),'k.-')
-                                        scatter(mts{mttk}(:,1),mts{mttk}(:,2))
-                                        plot(mts{mttk}(1,1),mts{mttk}(1,2),'*')
-                                        plot(track_on_interp_mt(1,1),track_on_interp_mt(1,2),'*')
+                                        plot(traj(ftk_on_mt(i)).x,traj(ftk_on_mt(i)).y,'.-','LineWidth',3,'MarkerSize',20)
+                                        plot(track_on_interp_mt(:,1),track_on_interp_mt(:,2),'r.-','LineWidth',3,'MarkerSize',20)
+                                        plot(track_on_interp_mt(plus_cap_ind,1),track_on_interp_mt(plus_cap_ind,2),'m.-','LineWidth',3,'MarkerSize',20)
+                                        plot(track_on_interp_mt(plus_gdp_ind,1),track_on_interp_mt(plus_gdp_ind,2),'g.-','LineWidth',3,'MarkerSize',20)
+                                        plot(track_on_interp_mt(seed_ind,1),track_on_interp_mt(seed_ind,2),'k.-','LineWidth',3,'MarkerSize',20)
+                                        scatter(mts{mttk}(:,1),mts{mttk}(:,2),28,'k', 'filled')
+                                        plot(mts{mttk}(1,1),mts{mttk}(1,2),'k*','MarkerSize',20)
+                                        plot(track_on_interp_mt(1,1),track_on_interp_mt(1,2),'k*','MarkerSize',20)
                                         if zcap ==1
-                                            scatter(boundaries_on_mt{mttk}(1,1),boundaries_on_mt{mttk}(1,2),'m','filled')
-                                            scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),'g','filled')
-                                            scatter(boundaries_on_mt{mttk}(:,1),boundaries_on_mt{mttk}(:,2))
+                                            scatter(boundaries_on_mt{mttk}(:,1),boundaries_on_mt{mttk}(:,2),28,'k','filled')
+                                            scatter(boundaries_on_mt{mttk}(1,1),boundaries_on_mt{mttk}(1,2),28,'m','filled')
+                                            scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),28,'g','filled')
                                         end
                                     end
                                     %%%%%%%

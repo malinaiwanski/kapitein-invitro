@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 1; %set to 1 if using capped MTs
+zcap = 0; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -45,9 +45,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a'}; %{'kif1a','kif5b'}; %
-mt_type = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-date = {'2019-12-09'}; %{'2019-10-30'}; %
+motor = {'kif1a','kif5b'}; %{'kif1a'}; %
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
+date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -151,13 +151,16 @@ for mk = 1:size(motor,2)
         
         cum_time_bw_landing = [];
         cum_time_bw_landing_by_length = [];
-        cum_segment_lengths = zeros(5,1);
+        cum_segment_lengths = zeros(numel(traj_files),1);
         
         %% read in .mat file from each movie
         for movk = 1:numel(traj_files)
             %read in file
             datmovk = load(fullfile(dirname,traj_files(movk).name));
-
+            
+            disp('------------Reading in data from file:------------')
+            disp(traj_files(movk).name)
+            
             if numel(datmovk.cum_run_length) ~= numel(datmovk.traj)
                 disp('ERROR: Data mismatch - try re-running post_particle_tracking_1')
             end
@@ -178,9 +181,12 @@ for mk = 1:size(motor,2)
                 end
             end
             
-            datcat(catk).inst_vel{movk} = datmovk.traj.inst_vel;
-            datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
-            % datcat(catk).loc_alpha{movk} = datmovk.traj.loc_alpha;
+            temp_a = exist('datmovk.traj.proc_vel');
+            if temp_a ~=0
+                datcat(catk).inst_vel{movk} = datmovk.traj.inst_vel;
+                datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
+                % datcat(catk).loc_alpha{movk} = datmovk.traj.loc_alpha;
+            end
             
             %datcat(catk).pos_on_mt{movk} = datmovk.traj.position_on_mt;
             datcat(catk).track_start_times{movk} = datmovk.track_start_times;

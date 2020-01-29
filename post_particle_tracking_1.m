@@ -30,9 +30,9 @@ addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
-motors = {'kif1a'}; %{'kif1a','kif5b'}; %
-mt_types = {'cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-dates = {'2019-12-09'}; %{'2019-10-30'}; %
+motors = {'kif1a','kif5b'}; %{'kif1a'}; %
+mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -655,23 +655,44 @@ for master_date_ind = 1:size(dates,2)
                         end
                         
                         %% analyzing proximity of landing of other motors to the track in TIME
-                        no_repeat_traj = [];
-                        for j = 1:length(ftk_on_mt)
-                            other_traj_ind = setdiff(ftk_on_mt, ftk_on_mt(j));
-                            other_traj_ind = setdiff(other_traj_ind, no_repeat_traj);
+%                         no_repeat_traj = [];
+%                         for j = 1:length(ftk_on_mt)
+%                             other_traj_ind = setdiff(ftk_on_mt, ftk_on_mt(j));
+%                             other_traj_ind = setdiff(other_traj_ind, no_repeat_traj);
+% 
+%                             if tot_mt_length >= 6000 && traj(ftk_on_mt(j)).position_on_mt(1) <= 6000 %lands within first 6um of a MT at least 6um long
+%                                 for jk = 1:size(other_traj_ind,1)
+%                                     if ~isempty(other_traj_ind) && traj(other_traj_ind(jk)).position_on_mt(1) <= 6000 %also lands within first 6um of MT
+%                                         all_time_diff_bw_land = [all_time_diff_bw_land; (traj(other_traj_ind(jk)).frames(1)-traj(ftk_on_mt(j)).frames(1))*exp_time]; %[s]
+%                                         time_diff_bw_land{mttk} = [time_diff_bw_land{mttk}; (traj(other_traj_ind(jk)).frames(1)-traj(ftk_on_mt(j)).frames(1))*exp_time]; %[s]
+%                                         %PUT MATCHING DISTANCE B/W LANDING
+%                                         %HERE!!! %%%%%%%%%
+%                                     end
+%                                 end
+%                             end
+%                             no_repeat_traj = [no_repeat_traj,ftk_on_mt(j)];
+%                         end
+                            
+                       
+   
 
-                            if tot_mt_length >= 6000 && traj(ftk_on_mt(j)).position_on_mt(1) <= 6000 %lands within first 6um of a MT at least 6um long
-                                for jk = 1:size(other_traj_ind,1)
-                                    if ~isempty(other_traj_ind) && traj(other_traj_ind(jk)).position_on_mt(1) <= 6000 %also lands within first 6um of MT
-                                        all_time_diff_bw_land = [all_time_diff_bw_land; (traj(other_traj_ind(jk)).frames(1)-traj(ftk_on_mt(j)).frames(1))*exp_time]; %[s]
-                                        time_diff_bw_land{mttk} = [time_diff_bw_land{mttk}; (traj(other_traj_ind(jk)).frames(1)-traj(ftk_on_mt(j)).frames(1))*exp_time]; %[s]
-                                        %PUT MATCHING DISTANCE B/W LANDING
-                                        %HERE!!! %%%%%%%%%
-                                    end
+                        if tot_mt_length >= 6000 %MT at least 6um long
+                            traj_in_mt_sec = [];
+                            for i=1:length(ftk_on_mt)
+                                if traj(ftk_on_mt(i)).position_on_mt(1) <= 6000 %find indices of all tracks that start within first 6um of MT
+                                    traj_in_mt_sec = [traj_in_mt_sec; ftk_on_mt(i)];
                                 end
                             end
-                            no_repeat_traj = [no_repeat_traj,ftk_on_mt(j)];
+                            track_start_t_on_mt = [];
+                            for i=1:length(traj_in_mt_sec)
+                                track_start_t_on_mt(i) = traj(traj_in_mt_sec(i)).frames(1); %corresponding start times of tracks
+                            end
+                            time_diff_bw_land{mttk} = diff(track_start_t_on_mt)'.*exp_time; %[s]
+                            all_time_diff_bw_land = [all_time_diff_bw_land; diff(track_start_t_on_mt)'.*exp_time]; %[s]
+                            %PUT MATCHING DISTANCE B/W LANDING
+                            %HERE!!! %%%%%%%%%
                         end
+        
                             
                         
                         if zplot ~= 0
@@ -797,17 +818,21 @@ for master_date_ind = 1:size(dates,2)
                                             scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),28,'g','filled')
                                         end
                                     end
-                                    %%%%%%%
+                                    %save results
+                                traj(ftk_on_mt(i)).plus_cap_vel = plus_cap_vel;
+                                traj(ftk_on_mt(i)).plus_gdp_vel = plus_gdp_vel;
+                                traj(ftk_on_mt(i)).seed_vel = seed_vel;
+                                traj(ftk_on_mt(i)).minus_gdp_vel = minus_gdp_vel;
+                                traj(ftk_on_mt(i)).minus_cap_cel = minus_cap_vel;
+                                traj(ftk_on_mt(i)).track_start_segment = track_start_segment;  
                                 end
                             end
-
-                            %save results
-                            traj(ftk_on_mt(j)).plus_cap_vel = plus_cap_vel;
-                            traj(ftk_on_mt(j)).plus_gdp_vel = plus_gdp_vel;
-                            traj(ftk_on_mt(j)).seed_vel = seed_vel;
-                            traj(ftk_on_mt(j)).minus_gdp_vel = minus_gdp_vel;
-                            traj(ftk_on_mt(j)).minus_cap_cel = minus_cap_vel;
-                            traj(ftk_on_mt(j)).track_start_segment = track_start_segment;   
+%                             traj(ftk_on_mt(j)).plus_cap_vel = plus_cap_vel;
+%                             traj(ftk_on_mt(j)).plus_gdp_vel = plus_gdp_vel;
+%                             traj(ftk_on_mt(j)).seed_vel = seed_vel;
+%                             traj(ftk_on_mt(j)).minus_gdp_vel = minus_gdp_vel;
+%                             traj(ftk_on_mt(j)).minus_cap_cel = minus_cap_vel;
+%                             traj(ftk_on_mt(j)).track_start_segment = track_start_segment;  
                         end
                     end
                 end

@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -46,8 +46,8 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
-date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
+mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -151,7 +151,7 @@ for mk = 1:size(motor,2)
         
         cum_time_bw_landing = [];
         cum_time_bw_landing_by_length = [];
-        cum_segment_lengths = zeros(numel(traj_files),1);
+        cum_segment_lengths = zeros(6,1); %zeros(numel(traj_files),1);
         
         %% read in .mat file from each movie
         for movk = 1:numel(traj_files)
@@ -174,9 +174,9 @@ for mk = 1:size(motor,2)
             if zcap == 1
                 datcat(catk).boundaries_on_mt{movk} = datmovk.boundaries_on_mt;
                 datcat(catk).segment_lengths{movk} = datmovk.segment_lengths;
-                for i = 1:size(datcat(catk).segment_lengths{movk},2)
-                    for j = 1:size(datcat(catk).segment_lengths{movk}{i},1)
-                        cum_segment_lengths(j) = cum_segment_lengths(j) + datcat(catk).segment_lengths{movk}{i}(j);
+                for i = 1:size(datcat(catk).segment_lengths{movk},2) %each MT
+                    for j = 1:size(nonzeros(datcat(catk).segment_lengths{1,movk}{1,i},1)) %each segment in MT
+                        cum_segment_lengths(j) = cum_segment_lengths(j) + datcat(catk).segment_lengths{1,movk}{1,i}(j,1);
                     end
                 end
             end
@@ -419,7 +419,7 @@ for mk = 1:size(motor,2)
         end
         
         % landing position along MT - distance from plus-end
-        [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 300, 'Normalization', 'pdf');
+        [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 500, 'Normalization', 'count');
         nhist_landpos=landpos_n;
         xhist_landpos=landpos_edges+(500/2);
         xhist_landpos(end)=[]; 
@@ -427,11 +427,11 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_landpos,nhist_landpos)
         hold on 
-        xlabel('Landing distance to MT plus-end (nm)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Landing distance from MT plus-end'])
+        xlabel('Landing distance to MT plus-end (nm)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing distance from MT plus-end'])
         hold off
         
         % landing position along MT - normalized
-        [normlandpos_n, normlandpos_edges]=histcounts(datcat(catk).cum_norm_landing_pos, 'BinWidth', 0.1, 'Normalization', 'pdf');
+        [normlandpos_n, normlandpos_edges]=histcounts(datcat(catk).cum_norm_landing_pos, 'BinWidth', 0.1, 'Normalization', 'count');
         nhist_normlandpos=normlandpos_n;
         xhist_normlandpos=normlandpos_edges+(0.1/2);
         xhist_normlandpos(end)=[]; 
@@ -439,7 +439,7 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_normlandpos,nhist_normlandpos)
         hold on 
-        xlabel('Landing position along MT (fraction of 1)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Landing Position'])
+        xlabel('Landing position along MT (fraction of 1)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized Landing Position'])
         hold off
         
         % landing time on given MT
@@ -546,7 +546,7 @@ for mk = 1:size(motor,2)
                 end
             end 
         end
-        [deltland_n, deltland_edges]=histcounts(cum_time_bw_landing, 'BinWidth', 0.5, 'Normalization', 'pdf');
+        [deltland_n, deltland_edges]=histcounts(cum_time_bw_landing, 'BinWidth', 0.5, 'Normalization', 'count');
         nhist_deltland=deltland_n;
         xhist_deltland=deltland_edges+(0.5/2);
         xhist_deltland(end)=[]; 
@@ -554,7 +554,7 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_deltland,nhist_deltland)
         hold on 
-        xlabel('Time between landing events (s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
+        xlabel('Time between landing events (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
         hold off
         
         [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 5, 'Normalization', 'pdf');

@@ -125,8 +125,10 @@ for master_date_ind = 1:size(dates,2)
                     end
 
                     temp_cap_data = [temp_caps_x,temp_caps_y];
-                    uni_caps = unique(temp_cap_data,'rows','stable'); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
-
+%                     uni_caps = unique(temp_cap_data,'rows','stable'); %The ROI saver will repeat all preceding points clicked, so unique saves only the first instance of each point
+                    tol = 0.001;
+                    uni_caps = uniquetol(temp_cap_data,tol,'ByRows',true);
+                    
                     caps_x = uni_caps(:,1).*pixel_size+1.5*pixel_size;
                     caps_y = uni_caps(:,2).*pixel_size+1.5*pixel_size;
                     cap_loc = [caps_x, caps_y];
@@ -146,6 +148,12 @@ for master_date_ind = 1:size(dates,2)
                         cap_id = closemt;
                         caps_id = [caps_id, cap_id];
                         segment_boundaries{cap_id} = [segment_boundaries{cap_id};caps_x(i),caps_y(i)];
+                    end
+                    
+                    for i = cap_id
+                        if size(segment_boundaries{i},1) ~=2 && size(segment_boundaries{i},1) ~= 4
+                            disp(['MT number ', num2str(cap_id), ' does not have 3 or 5 segments. Retrace segment boundaries']);
+                        end
                     end
 
                     num_caps = length(unique(caps_id));

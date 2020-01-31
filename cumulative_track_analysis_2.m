@@ -175,8 +175,9 @@ for mk = 1:size(motor,2)
                 datcat(catk).boundaries_on_mt{movk} = datmovk.boundaries_on_mt;
                 datcat(catk).segment_lengths{movk} = datmovk.segment_lengths;
                 for i = 1:size(datcat(catk).segment_lengths{movk},2) %each MT
-                    for j = 1:size(nonzeros(datcat(catk).segment_lengths{1,movk}{1,i},1)) %each segment in MT
-                        cum_segment_lengths(j) = cum_segment_lengths(j) + datcat(catk).segment_lengths{1,movk}{1,i}(j,1);
+                    nzsegment_lengths = nonzeros(datcat(catk).segment_lengths{1,movk}{1,i});
+                    for j = 1:size(nzsegment_lengths,1) %each segment in MT
+                        cum_segment_lengths(j) = cum_segment_lengths(j) + nzsegment_lengths(j,1);
                     end
                 end
             end
@@ -474,9 +475,9 @@ for mk = 1:size(motor,2)
 %         xlim([0 mtnum])
         hold off
         % number of tracks on a MT per um
-        [numtkpum_n, numtkpum_edges]=histcounts(num_tracks_per_um, 'BinWidth', 0.1, 'Normalization', 'count');
+        [numtkpum_n, numtkpum_edges]=histcounts(num_tracks_per_um, 'BinWidth', 0.5, 'Normalization', 'count');
         nhist_numtkpum=numtkpum_n;
-        xhist_numtkpum=numtkpum_edges+(0.1/2);
+        xhist_numtkpum=numtkpum_edges+(0.5/2);
         xhist_numtkpum(end)=[]; 
         figure(numtracks)
         subplot(size(motor,2),size(mt_type,2),catk)
@@ -485,9 +486,9 @@ for mk = 1:size(motor,2)
         xlabel('Number of track starts per \mum'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Normalized Number of Tracks on given MT'])
         hold off
         % number of tracks on a MT
-        [numtkpmt_n, numtkpmt_edges]=histcounts(num_tracks_mt, 'BinWidth', 1, 'Normalization', 'probability');
+        [numtkpmt_n, numtkpmt_edges]=histcounts(num_tracks_mt, 'BinWidth', 2, 'Normalization', 'probability');
         nhist_numtkpmt=numtkpmt_n;
-        xhist_numtkpmt=numtkpmt_edges+(1/2);
+        xhist_numtkpmt=numtkpmt_edges+(2/2);
         xhist_numtkpmt(end)=[]; 
         figure(numtracksmt)
         subplot(size(motor,2),size(mt_type,2),catk)
@@ -638,13 +639,13 @@ for mk = 1:size(motor,2)
                 mt_cat = [mt_cat; repmat(mt_plot_ind,size(datcat(catk).time_diff_bw_land{1,i}{1,j},1),1)];
             end
         end
-        figure(landingdeltimeviolin)
-        subplot(size(motor,2),size(mt_type,2),catk)
-        plot(mt_cat,delta_t,'.','MarkerSize',12)
-%         violinplot(delta_t,mt_cat)
-        hold on 
-        xlabel('MT'), ylabel('Time between landings (s)'), title([motor{mk},' ', mt_type{mtk},' Time between landing in first 6\mum of MT'])
-        hold off
+%         figure(landingdeltimeviolin)
+%         subplot(size(motor,2),size(mt_type,2),catk)
+%         plot(mt_cat,delta_t,'.','MarkerSize',12)
+% %         violinplot(delta_t,mt_cat)
+%         hold on 
+%         xlabel('MT'), ylabel('Time between landings (s)'), title([motor{mk},' ', mt_type{mtk},' Time between landing in first 6\mum of MT'])
+%         hold off
         
 %         %normalized landing distance to existing track
 %         [norm_landing_distances_n, norm_landing_distances_edges]=histcounts(datcat(catk).all_norm_landing_dist, 'BinWidth', 0.1, 'Normalization', 'count');

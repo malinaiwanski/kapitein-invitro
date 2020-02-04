@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 1; %set to 1 if using capped MTs
+zcap = 0; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -46,8 +46,8 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
+date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -64,8 +64,11 @@ if zplot ~= 0
     figure,numtracksmt = gcf;
     figure, timebwland = gcf;
     figure,timebwlandhist = gcf;
+    figure,ecdf_timebwlandhist = gcf;
     figure,timebwlandbydisthist = gcf;
+    figure,ecdf_timebwlandbydisthist = gcf;
     figure, landingdeltime = gcf;
+    figure,ecdf_landingdeltime = gcf;
     figure, landingdeltimeviolin = gcf;
 %     figure, landrelativemotor = gcf;
 %     figure, landrelativemotorviolin = gcf;
@@ -558,6 +561,30 @@ for mk = 1:size(motor,2)
         xlabel('Time between landing events (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landing events'])
         hold off
         
+        [empF,x,empFlo,empFup] = ecdf(cum_time_bw_landing); %find empirical CDF
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [10];
+        loL = [1];
+        upL = [30];
+        mypdf = @(x,muhat) (1/muhat)*exp(-x/muhat);
+        mycdf = @(x,muhat) 1-exp(-x/muhat);
+        [estimcumt, pcicumt] = mle((1-empF),'pdf',mypdf,'cdf',mycdf,'start',p0,'Options',opt,'LowerBound', loL,'UpperBound', upL); %'Censoring',datcat(catk).cum_censored(datcat(catk).cum_run_length>700)
+        
+        %plot fit
+        ycumt = mycdf(x, estimcumt);%1-exppdf(x, estimcumt);
+        ycumtlo = mycdf(x, pcicumt(1));%1-exppdf(x, pcicumt(1));
+        ycumthi = mycdf(x, pcicumt(2));%1-exppdf(x, pcicumt(2));
+        figure(ecdf_timebwlandhist) %plot empirical CDF fitted Mixed Weibull CDF
+        subplot(size(motor,2),size(mt_type,2),catk)
+        hold on
+        plot(x,(1.0.*ycumt),'r-');
+        plot(x,(1.0.*ycumtlo),'r.');
+        plot(x,(1.0.*ycumthi),'r.');
+        stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
+        xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Time between landing events Empirical CDF');
+        hold off
+        
         [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 5, 'Normalization', 'pdf');
         nhist_deltlanddist=deltlanddist_n;
         xhist_deltlanddist=deltlanddist_edges+(5/2);
@@ -568,6 +595,40 @@ for mk = 1:size(motor,2)
         hold on 
         xlabel('Time between landing events (s*\mum)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Normalized Time between landing events'])
         hold off
+        
+%         [empF,x,empFlo,empFup] = ecdf(cum_time_bw_landing_by_length); %find empirical CDF
+%         figure(ecdf_timebwlandbydisthist) %plot empirical CDF fitted Mixed Weibull CDF
+%         subplot(size(motor,2),size(mt_type,2),catk)
+%         hold on
+%         stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
+%         xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Normalized Time between landing events Empirical CDF');
+%         hold off
+        
+        
+        [empF,x,empFlo,empFup] = ecdf(cum_time_bw_landing_by_length); %find empirical CDF
+        opt = statset('mlecustom');
+        opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+        p0 = [40];
+        loL = [20];
+        upL = [100];
+        mypdf = @(x,muhat) (1/muhat)*exp(-x/muhat);
+        mycdf = @(x,muhat) 1-exp(-x/muhat);
+        [estimcumt, pcicumt] = mle((1-empF),'pdf',mypdf,'cdf',mycdf,'start',p0,'Options',opt,'LowerBound', loL,'UpperBound', upL); %'Censoring',datcat(catk).cum_censored(datcat(catk).cum_run_length>700)
+        estimcumt
+        %plot fit
+        ycumt = mycdf(x, estimcumt);%1-exppdf(x, estimcumt);
+        ycumtlo = mycdf(x, pcicumt(1));%1-exppdf(x, pcicumt(1));
+        ycumthi = mycdf(x, pcicumt(2));%1-exppdf(x, pcicumt(2));
+        figure(ecdf_timebwlandbydisthist) %plot empirical CDF fitted Mixed Weibull CDF
+        subplot(size(motor,2),size(mt_type,2),catk)
+        hold on
+        plot(x,(1.0.*ycumt),'r-');
+        plot(x,(1.0.*ycumtlo),'r.');
+        plot(x,(1.0.*ycumthi),'r.');
+        stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
+        xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Normalized time between landing events Empirical CDF');
+        hold off
+        
          
 %         figure(landrelativemotorviolin)
 %         subplot(size(motor,2),size(mt_type,2),catk)
@@ -627,6 +688,14 @@ for mk = 1:size(motor,2)
         hold on 
         xlabel('Time between landings (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Time between landings within 6\mum'])
         xlim([0 60])
+        hold off
+        
+        [empF,x,empFlo,empFup] = ecdf(datcat(catk).all_time_diff_bw_land); %find empirical CDF
+        figure(ecdf_landingdeltime) %plot empirical CDF fitted Mixed Weibull CDF
+        subplot(size(motor,2),size(mt_type,2),catk)
+        hold on
+        stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
+        xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Time between landings within 6\mum Empirical CDF');
         hold off
         
         delta_t = [];

@@ -22,7 +22,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 0;
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -46,8 +46,8 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
-date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
+mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -582,7 +582,7 @@ for mk = 1:size(motor,2)
         plot(x,(1.0.*ycumtlo),'r.');
         plot(x,(1.0.*ycumthi),'r.');
         stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
-        xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Time between landing events Empirical CDF');
+        xlabel('Time (s)'); ylabel('Cumulative Probability'); title('Time between landing events Empirical CDF');
         hold off
         
         [deltlanddist_n, deltlanddist_edges]=histcounts(cum_time_bw_landing_by_length, 'BinWidth', 5, 'Normalization', 'pdf');
@@ -626,7 +626,7 @@ for mk = 1:size(motor,2)
         plot(x,(1.0.*ycumtlo),'r.');
         plot(x,(1.0.*ycumthi),'r.');
         stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
-        xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Normalized time between landing events Empirical CDF');
+        xlabel('Time (s*\mum)'); ylabel('Cumulative Probability'); title('Normalized time between landing events Empirical CDF');
         hold off
         
          
@@ -695,7 +695,7 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         hold on
         stairs(x,empF,'b'); stairs(x,empFlo,'b:'); stairs(x,empFup,'b:');
-        xlabel('Time (seconds)'); ylabel('Cumulative Probability'); title('Time between landings within 6\mum Empirical CDF');
+        xlabel('Time (s)'); ylabel('Cumulative Probability'); title('Time between landings within 6\mum Empirical CDF');
         hold off
         
         delta_t = [];

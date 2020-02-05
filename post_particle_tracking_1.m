@@ -723,7 +723,7 @@ for master_date_ind = 1:size(dates,2)
                                 end
                                 dist_to_bound{mttk} = sortrows(dist_to_bound{mttk},1);
                                 for j=1:size(boundaries_on_mt{mttk},1)
-                                    boundaries_on_mt{mttk}(j,:) = boundaries_on_mt_old{mttk}(dist_to_bound{mttk}(j,2),:); %boundaries ordered from closest to furthest from plus-end of MT (i.e. minus- to plus- end)
+                                    boundaries_on_mt{mttk}(j,:) = boundaries_on_mt_old{mttk}(dist_to_bound{mttk}(j,2),:); %boundaries ordered from closest to furthest from plus-end of MT 
                                 end
                             end
                             dist_along_mt = [0;dist_to_bound{mttk}(:,1);tot_mt_length];

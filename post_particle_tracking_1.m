@@ -530,7 +530,7 @@ for master_date_ind = 1:size(dates,2)
                 %% analyze track start times and position
                 track_start_times = cell(num_mts,1);
                 track_dist_to_plus_end = {};
-                segment_indices = {};
+                
                 segment_lengths = {};
                 all_landing_dist = []; %not grouped by um
                 all_norm_landing_dist = []; %all_landing_dist but normalized by distance from track of interest to MT end that motor lands towards
@@ -546,6 +546,7 @@ for master_date_ind = 1:size(dates,2)
                 cum_minus_gdp_vel = [];
                 cum_track_start_segment = [];
                 for mttk = 1:num_mts
+                    segment_indices = {};
                     ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
                     if ~isempty(ftk_on_mt)
                         tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
@@ -569,7 +570,7 @@ for master_date_ind = 1:size(dates,2)
                             if interp_mt_end_ind == size(interp_mts{mttk},1)
                                 dist_to_end = 0;
                             else
-                                mt_inds_to_end = interp_mt_end_ind:1:size(interp_mts{mttk},1);
+                                mt_inds_to_end = interp_mt_end_ind:1:size(interp_mts{mttk},1); % indices to plus-end
                                 dist_to_end = arclength(interp_mts{mttk}(mt_inds_to_end,1),interp_mts{mttk}(mt_inds_to_end,2));
                             end
                             landing_dist_to_mt_end = dist_to_end; %distance from start of track to plus-end of MT

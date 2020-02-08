@@ -14,9 +14,11 @@
 % Ensure that tMSD_2D.m and MSD_2D.m are in the same folder as this code.
 
 clear all, close all
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
@@ -65,8 +67,10 @@ if zplot ~= 0
     figure, timebwland = gcf;
     figure,timebwlandhist = gcf;
     figure,ecdf_timebwlandhist = gcf;
+    figure, linear_timebwlandhist = gcf;
     figure,timebwlandbydisthist = gcf;
     figure,ecdf_timebwlandbydisthist = gcf;
+    figure,linear_timebwlandbydisthist = gcf;
     figure, landingdeltime = gcf;
     figure,ecdf_landingdeltime = gcf;
     figure, landingdeltimeviolin = gcf;
@@ -88,8 +92,8 @@ end
 %% Initialize variables
 
 %% Load data
-dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-%dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+%dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
 filename_start = 'post_particle_tracking';
 
 num_cat = size(motor,2)*size(mt_type,2);
@@ -150,6 +154,8 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_minus_cap_vel = [];
             datcat(catk).cum_minus_gdp_vel = [];
             datcat(catk).cum_track_start_segment = [];
+            datcat(catk).landing_dist_by_seg = {};
+            datcat(catk).segment_indices = {};
         end
         
         cum_time_bw_landing = [];
@@ -183,6 +189,8 @@ for mk = 1:size(motor,2)
                         cum_segment_lengths(j) = cum_segment_lengths(j) + nzsegment_lengths(j,1);
                     end
                 end
+                datcat(catk).landing_dist_by_seg{movk} = datmovk.landing_dist_by_seg;
+                datcat(catk).segment_indices{movk} = datmovk.segment_indices;
             end
             
             temp_a = exist('datmovk.traj.proc_vel');
@@ -571,6 +579,20 @@ for mk = 1:size(motor,2)
         mycdf = @(x,muhat) 1-exp(-x/muhat);
         [estimcumt, pcicumt] = mle((1-empF),'pdf',mypdf,'cdf',mycdf,'start',p0,'Options',opt,'LowerBound', loL,'UpperBound', upL); %'Censoring',datcat(catk).cum_censored(datcat(catk).cum_run_length>700)
         
+        % linear fit
+        y_p = -log(1-empF);
+        [test_fit,S] = polyfit(x,y_p,1);
+        [y_fit,delta] = polyval(test_fit,x,S);
+        mu_p = test_fit(1);
+        figure(linear_timebwlandhist) %plot empirical CDF fitted Mixed Weibull CDF
+        subplot(size(motor,2),size(mt_type,2),catk)
+        plot(x,y_p,'bx');
+        hold on
+%         plot(test_fit(1).*x + test_fit(2))
+        plot(x,y_fit,'r-')
+        plot(x,y_fit+2*delta,'m--',x,y_fit-2*delta,'m--')
+        hold off
+        
         %plot fit
         ycumt = mycdf(x, estimcumt);%1-exppdf(x, estimcumt);
         ycumtlo = mycdf(x, pcicumt(1));%1-exppdf(x, pcicumt(1));
@@ -614,7 +636,21 @@ for mk = 1:size(motor,2)
         mypdf = @(x,muhat) (1/muhat)*exp(-x/muhat);
         mycdf = @(x,muhat) 1-exp(-x/muhat);
         [estimcumt, pcicumt] = mle((1-empF),'pdf',mypdf,'cdf',mycdf,'start',p0,'Options',opt,'LowerBound', loL,'UpperBound', upL); %'Censoring',datcat(catk).cum_censored(datcat(catk).cum_run_length>700)
-        estimcumt
+        
+        % linear fit
+        y_p = -log(1-empF);
+        [test_fit,S] = polyfit(x,y_p,1);
+        [y_fit,delta] = polyval(test_fit,x,S);
+        mu_p = test_fit(1);
+        figure(linear_timebwlandbydisthist) %plot empirical CDF fitted Mixed Weibull CDF
+        subplot(size(motor,2),size(mt_type,2),catk)
+        plot(x,y_p,'bx');
+        hold on    
+%         plot(test_fit(1).*x + test_fit(2))
+        plot(x,y_fit,'r-')
+        plot(x,y_fit+2*delta,'m--',x,y_fit-2*delta,'m--')
+        hold off
+        
         %plot fit
         ycumt = mycdf(x, estimcumt);%1-exppdf(x, estimcumt);
         ycumtlo = mycdf(x, pcicumt(1));%1-exppdf(x, pcicumt(1));

@@ -14,11 +14,11 @@
 % Ensure that tMSD_2D.m and MSD_2D.m are in the same folder as this code.
 
 clear all, close all
-%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
-%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
-addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
-addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
+%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
@@ -92,8 +92,8 @@ end
 %% Initialize variables
 
 %% Load data
-%dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+%dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
 filename_start = 'post_particle_tracking';
 
 num_cat = size(motor,2)*size(mt_type,2);

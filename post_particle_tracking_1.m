@@ -24,11 +24,11 @@
 % interparc from c
 
 clear all, close all
-%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
-%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
-addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
-addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
+%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
@@ -49,8 +49,8 @@ for master_date_ind = 1:size(dates,2)
             %filenum = %5;
 
             %% Load data
-            %dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-            dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
+            dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+            %dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 
             motor_files = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
@@ -920,13 +920,13 @@ for master_date_ind = 1:size(dates,2)
 
                 %% Save data
                 if zsave ~= 0
-                    %save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-                    save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+                    save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+                    %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     end
                 end
             end

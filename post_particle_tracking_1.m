@@ -21,12 +21,14 @@
 
 % You will also need to download the following functions:
 % arclength from https://nl.mathworks.com/matlabcentral/fileexchange/34871-arclength
-% interparc from https://nl.mathworks.com/matlabcentral/fileexchange/34874-interparc
+% interparc from c
 
 clear all, close all
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
@@ -47,8 +49,8 @@ for master_date_ind = 1:size(dates,2)
             %filenum = %5;
 
             %% Load data
-            dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-            %dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
+            %dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+            dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 
             motor_files = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
@@ -166,7 +168,7 @@ for master_date_ind = 1:size(dates,2)
 
                         %find closest point along MT to each segment boundary
                         for i = 1:size(segment_boundaries{j},1)
-                            [nearpoints_mt,dist_nearpoints] = rangesearch(interp_mts{j},segment_boundaries{j},5000,'Distance','euclidean','SortIndices',1); %find nearby points on MT
+                            [nearpoints_mt,dist_nearpoints] = rangesearch(interp_mts{j},segment_boundaries{j},5000,'Distance','euclidean');%,'SortIndices',1); %find nearby points on MT
                             closest_mtpoint_ind = nearpoints_mt{i,1}(1);
                             closest_mtpoint = interp_mts{j}(closest_mtpoint_ind,:);
                             boundaries_on_mt{j} = [boundaries_on_mt{j}; closest_mtpoint]; 
@@ -415,7 +417,7 @@ for master_date_ind = 1:size(dates,2)
                     %% Find where along MT motor is
                     %find closest points on MT to motor coordinates
                     for j = 1:size(x_tk,1)
-                        [nearpoints_motmt,distmotmt_nearpoints] = rangesearch(interp_mts{mt_tk},[x_tk,y_tk],5000,'Distance','euclidean','SortIndices',1); %find nearby points on MT
+                        [nearpoints_motmt,distmotmt_nearpoints] = rangesearch(interp_mts{mt_tk},[x_tk,y_tk],5000,'Distance','euclidean');%,'SortIndices',1); %find nearby points on MT
                         closest_motmtpoint_ind = nearpoints_motmt{j,1}(1);
                         closest_motmtpoint = interp_mts{mt_tk}(closest_motmtpoint_ind,:);
                         motor_on_mt{ftk} = [motor_on_mt{ftk}; closest_motmtpoint];
@@ -532,7 +534,9 @@ for master_date_ind = 1:size(dates,2)
                 track_dist_to_plus_end = {};
                 
                 segment_lengths = {};
-                all_landing_dist = []; %not grouped by um
+                all_landing_dist = []; %not grouped by um, but within 3um
+                landing_distance = {};
+                landing_dist_by_seg = {};
                 all_norm_landing_dist = []; %all_landing_dist but normalized by distance from track of interest to MT end that motor lands towards
                 all_mt_landing_dist = []; %all_landing_dist but normalized by total MT length
                 all_time_diff_bw_land = []; %stores time between landing events of motors that are within 3um of each other when the later motor lands
@@ -548,6 +552,8 @@ for master_date_ind = 1:size(dates,2)
                 for mttk = 1:num_mts
                     segment_indices = {};
                     ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
+                    landing_distance{mttk} = cell(size(ftk_on_mt,1),size(ftk_on_mt,1)-1);
+                    landing_dist_by_seg{mttk} = cell(5,1);
                     if ~isempty(ftk_on_mt)
                         tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
                         
@@ -589,7 +595,7 @@ for master_date_ind = 1:size(dates,2)
                             frames_to_check = traj(ftk_on_mt(j)).frames;
                             motorqpos = traj(ftk_on_mt(j)).pos_on_interpmt;
                             other_traj_ind = setdiff(ftk_on_mt,ftk_on_mt(j));
-                            
+
 %                             if tot_mt_length >= 6000 && traj(ftk_on_mt(j)).position_on_mt(1) <= 6000 %lands within first 6um of a MT at least 6um long
 %                                 for jk = 1:size(other_traj_ind,1)
 %                                     if traj(other_traj_ind(jk)).position_on_mt <= 6000 %also lands within first 6um of MT
@@ -638,14 +644,15 @@ for master_date_ind = 1:size(dates,2)
                                                     dist_bw = -1*dist_bw;
                                                 end
                                             end
-                                            if abs(dist_bw) <= 3000
-                                                norm_dist_bw = dist_bw/norm_dist;
-                                                mt_dist_bw = dist_bw/tot_mt_length;
-                                                all_landing_dist = [all_landing_dist; dist_bw];
-                                                all_norm_landing_dist = [all_norm_landing_dist;norm_dist_bw];
-                                                all_mt_landing_dist = [all_mt_landing_dist;mt_dist_bw];
-%                                                 all_time_diff_bw_land = [all_time_diff_bw_land; (frames_to_check(framek)-frames_to_check(1))*exp_time]; %[s]
-                                            end
+                                            norm_dist_bw = dist_bw/norm_dist;
+                                            mt_dist_bw = dist_bw/tot_mt_length;
+                                            all_norm_landing_dist = [all_norm_landing_dist;norm_dist_bw];
+                                            all_mt_landing_dist = [all_mt_landing_dist;mt_dist_bw];
+%                                            all_time_diff_bw_land = [all_time_diff_bw_land; (frames_to_check(framek)-frames_to_check(1))*exp_time]; %[s]
+                                            if abs(dist_bw) <= 3000 %lands within 3um of existing track
+                                                all_landing_dist = [all_landing_dist; dist_bw]; %within 3um
+                                                landing_distance{mttk}{j,jk} = [frames_to_check(framek), dist_bw]; %{mttk}{ftk_on_mt(j),other_traj_ind(jk)}
+                                          end
                                         end
                                     end
                                 end
@@ -771,29 +778,31 @@ for master_date_ind = 1:size(dates,2)
                                         elseif k == 5 %is on -cap
                                             minus_cap_ind = ind;
                                         end
-                                        segment_indices{ftk_on_mt(i),k} = ind;
+                                        segment_indices{mttk}{ftk_on_mt(i),k} = ind;
                                         if ~isempty(ind == 1)
                                             track_start_segment = k;
                                         end
                                     end
-                                    plus_cap_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),1}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),1}).*exp_time);
+                                                                        
+                                    %analyze velocities on different segments
+                                    plus_cap_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{mttk}{ftk_on_mt(i),1}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),1}).*exp_time);
                                     if ~isempty(plus_cap_vel)
                                         plus_cap_vel = plus_cap_vel(1,:);
                                     end
-                                    plus_gdp_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),2}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),2}).*exp_time);
+                                    plus_gdp_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{mttk}{ftk_on_mt(i),2}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),2}).*exp_time);
                                     if ~isempty(plus_gdp_vel)
                                         plus_gdp_vel = plus_gdp_vel(1,:);
                                     end
-                                    seed_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),3}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),3}).*exp_time);
+                                    seed_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{mttk}{ftk_on_mt(i),3}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),3}).*exp_time);
                                     if ~isempty(seed_vel)
                                         seed_vel = seed_vel(1,:);
                                     end
                                     if segment_annotate == 5
-                                        minus_cap_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),5}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),5}).*exp_time);
+                                        minus_cap_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{mttk}{ftk_on_mt(i),5}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),5}).*exp_time);
                                         if ~isempty(minus_cap_vel)
                                             minus_cap_vel = minus_cap_vel(1,:);
                                         end
-                                        minus_gdp_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{ftk_on_mt(i),4}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{ftk_on_mt(i),4}).*exp_time);
+                                        minus_gdp_vel = diff(traj(ftk_on_mt(i)).position(segment_indices{mttk}{ftk_on_mt(i),4}))./diff(traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),4}).*exp_time);
                                         if ~isempty(minus_gdp_vel)
                                             minus_gdp_vel = minus_gdp_vel(1,:);
                                         end
@@ -835,6 +844,36 @@ for master_date_ind = 1:size(dates,2)
                                 traj(ftk_on_mt(i)).minus_cap_cel = minus_cap_vel;
                                 traj(ftk_on_mt(i)).track_start_segment = track_start_segment;  
                                 end
+                                
+                                                                    
+                                %analyze landing distance to other motors based on segments
+                                % landing_distance{mttk}{ftk_on_mt(j),other_traj_ind(jk)} = [framek, dist_bw];
+                                %segment_indices{mttk}{ftk_on_mt(i),k} with
+                                %k = 1 plus cap, k=2 plus gdp, k=3 seed,
+                                %...
+                                if ~isempty(landing_distance{mttk}) == 1
+                                    for i = 1:size(ftk_on_mt,1) %each track on MT
+                                        other_traj_ind = setdiff(ftk_on_mt,ftk_on_mt(i));
+                                        for j = size(other_traj_ind, 1) %each "other" track on MT
+                                            if ~isempty(landing_distance{mttk}{i,j}) == 1
+                                                for k = 1:size(segment_indices{mttk},2)
+                                                    if ismember(landing_distance{mttk}{i,j}(1,1),traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),k})) == 1
+                                                        motqseg = k;
+
+                                                    end
+                                                    if ismember(landing_distance{mttk}{i,j}(1,1),traj(other_traj_ind(j)).frames(segment_indices{mttk}{other_traj_ind(j),k})) == 1
+                                                        otherseg = k;
+                                                    end
+
+                                                end
+                                                if motqseg == otherseg %motors present on same seg %%%%% currently not checking whether segment itself is long enough!!
+                                                    landing_dist_by_seg{mttk}{motqseg} = [landing_dist_by_seg{mttk}{motqseg},landing_distance{mttk}{i,j}(1,2)]; %{mttk}{ftk_on_mt(i),other_traj_ind(j)}
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+
                             end
 %                             traj(ftk_on_mt(j)).plus_cap_vel = plus_cap_vel;
 %                             traj(ftk_on_mt(j)).plus_gdp_vel = plus_gdp_vel;
@@ -881,13 +920,13 @@ for master_date_ind = 1:size(dates,2)
 
                 %% Save data
                 if zsave ~= 0
-                    save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-                    %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+                    %save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+                    save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
                         save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_loc_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                     end
                 end
             end

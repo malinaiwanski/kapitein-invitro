@@ -21,7 +21,7 @@
 
 % You will also need to download the following functions:
 % arclength from https://nl.mathworks.com/matlabcentral/fileexchange/34871-arclength
-% interparc from c
+% interparc from https://nl.mathworks.com/matlabcentral/fileexchange/34874-interparc
 
 clear all, close all
 addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows

@@ -102,18 +102,18 @@ frames = sort(frames);
 %%
 tmsd_changepts = [frames,mmsd(:,1),proc];
 
-% %% plot parsed trajectory: displacement over time and local alpha-values over time; paused in red, processive in blue
-% figure 
-% disp = sqrt(sum((r-r(1,:)).^2,2)); 
-% subplot(2,1,1), hold on
-% plot(proc_frames,disp(proc_frames),'b.') 
-% plot(pause_frames,disp(pause_frames),'r.') 
-% ylabel('Displacement')
-% hold off
-% subplot(2,1,2), hold on
-% plot(proc_frames,mmsd(proc_frames,1),'b.')
-% plot(pause_frames,mmsd(pause_frames,1),'r.')
-% xlabel('Time (s)'), ylabel('Alpha')
-% hold off
+%% plot parsed trajectory: displacement over time and local alpha-values over time; paused in red, processive in blue
+figure 
+disp = sqrt(sum((r-r(1,:)).^2,2)); 
+subplot(2,1,1), hold on
+plot(proc_frames,disp(proc_frames),'b.') 
+plot(pause_frames,disp(pause_frames),'r.') 
+ylabel('Displacement')
+hold off
+subplot(2,1,2), hold on
+plot(proc_frames,mmsd(proc_frames,1),'b.')
+plot(pause_frames,mmsd(pause_frames,1),'r.')
+xlabel('Time (s)'), ylabel('Alpha')
+hold off
 
 end

@@ -23,8 +23,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
-zsave = 0;
-zcap = 1; %set to 1 if using capped MTs
+zsave = 1;
+zcap = 0; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -48,31 +48,35 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
+date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
 
 %% Initialize figures
 if zplot ~= 0
-    figure,totrl=gcf; %initialize figure
-    figure,totuvel=gcf; %initialize figure
-    figure,boundtime=gcf; %initialize figure
-    figure,localalpha=gcf; %initialize figure
-    figure,instvel=gcf; %initialize figure
-    figure,procvel=gcf; %initialize figure
-    figure,landpos = gcf;
-    figure,normlandpos = gcf;
+    figure, totrl = gcf; %initialize figure
+    figure, totuvel = gcf; %initialize figure
+    figure, boundtime = gcf; %initialize figure
+    figure, localalpha = gcf; %initialize figure
+    figure, pauseprocalpha = gcf;
+    figure, instvel = gcf; %initialize figure
+    figure, procvel = gcf; %initialize figure
+    figure, pauseprocvel = gcf;
+    figure, landrate = gcf;
+    figure, landrateviolin = gcf;
+    figure, landpos = gcf;
+    figure, normlandpos = gcf;
     figure, landtime = gcf;
-    figure,numtracks = gcf;
-    figure,numtracksmt = gcf;
+    figure, numtracks = gcf;
+    figure, numtracksmt = gcf;
     figure, timebwland = gcf;
-    figure,timebwlandhist = gcf;
-    figure,ecdf_timebwlandhist = gcf;
+    figure, timebwlandhist = gcf;
+    figure, ecdf_timebwlandhist = gcf;
     figure, linear_timebwlandhist = gcf;
-    figure,timebwlandbydisthist = gcf;
-    figure,ecdf_timebwlandbydisthist = gcf;
-    figure,linear_timebwlandbydisthist = gcf;
+    figure, timebwlandbydisthist = gcf;
+    figure, ecdf_timebwlandbydisthist = gcf;
+    figure, linear_timebwlandbydisthist = gcf;
     figure, landingdeltime = gcf;
-    figure,ecdf_landingdeltime = gcf;
+    figure, ecdf_landingdeltime = gcf;
     figure, landingdeltimeviolin = gcf;
 %     figure, landrelativemotor = gcf;
 %     figure, landrelativemotorviolin = gcf;
@@ -83,10 +87,10 @@ if zplot ~= 0
 %     figure, normlandingdistancetomotor = gcf;
 %     figure, normmtlandingdistancetomotor = gcf;
     if zcap == 1
-        figure,segmentvel=gcf; %initialize figure 
-        figure,segmenttypevel=gcf; %initialize figure 
-        figure,trackstartsegment=gcf; %initialize figure
-        figure, trackstartsegmenttype=gcf;
+        figure, segmentvel = gcf; %initialize figure 
+        figure, segmenttypevel = gcf; %initialize figure 
+        figure, trackstartsegment = gcf; %initialize figure
+        figure, trackstartsegmenttype = gcf;
     end
 end
 %% Initialize variables
@@ -98,6 +102,8 @@ filename_start = 'post_particle_tracking';
 
 num_cat = size(motor,2)*size(mt_type,2);
 catk = 0;
+
+land_rates = [];
 
 for mk = 1:size(motor,2)
     for mtk = 1:size(mt_type,2)
@@ -137,10 +143,14 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_mean_vel = [];
         datcat(catk).cum_inst_vel = [];
         datcat(catk).cum_proc_vel = [];
+        datcat(catk).cum_pause_vel = [];
         datcat(catk).cum_loc_alpha = [];
+        datcat(catk).cum_proc_alpha = [];
+        datcat(catk).cum_pause_alpha = [];
         datcat(catk).cum_norm_landing_pos = [];
         datcat(catk).cum_landing_dist_to_mt_end = [];
         datcat(catk).all_landing_dist = [];
+        datcat(catk).all_landing_rate = [];
 %         datcat(catk).all_norm_landing_dist = [];
 %         datcat(catk).all_mt_landing_dist = [];
         datcat(catk).all_dist_to_plus = [];
@@ -178,6 +188,7 @@ for mk = 1:size(motor,2)
             datcat(catk).traj{movk} = datmovk.traj;
             datcat(catk).mt_id{movk} = datmovk.traj.mt;
             datcat(catk).mts{movk} = datmovk.mts;
+            mts_to_include = find(~cellfun('isempty', datcat(catk).mts{movk})); %indices of MTs not filtered out      
             datcat(catk).interp_mts{movk} = datmovk.interp_mts;
             datcat(catk).mt_lengths{movk} = datmovk.mt_lengths;
             if zcap == 1
@@ -209,10 +220,16 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_mean_vel = [datcat(catk).cum_mean_vel; datmovk.cum_mean_vel];
             datcat(catk).cum_inst_vel = [datcat(catk).cum_inst_vel, datmovk.cum_inst_vel]; %traj.inst_vel];
             datcat(catk).cum_proc_vel = [datcat(catk).cum_proc_vel, datmovk.cum_proc_vel]; %traj.proc_vel];
+            datcat(catk).cum_pause_vel = [datcat(catk).cum_pause_vel, datmovk.cum_pause_vel];
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
+            datcat(catk).cum_proc_alpha = [datcat(catk).cum_proc_alpha; datmovk.cum_proc_alpha];
+            datcat(catk).cum_pause_alpha = [datcat(catk).cum_pause_alpha; datmovk.cum_pause_alpha];
             datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
             datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
             datcat(catk).all_landing_dist = [datcat(catk).all_landing_dist; datmovk.all_landing_dist];
+            
+            datcat(catk).all_landing_rate = [datcat(catk).all_landing_rate; datmovk.landing_rate(mts_to_include)];
+            land_rates = [land_rates;datmovk.landing_rate(mts_to_include), repmat(catk,numel(datmovk.landing_rate(mts_to_include)),1)];
 %             datcat(catk).all_norm_landing_dist = [datcat(catk).all_norm_landing_dist; datmovk.all_norm_landing_dist];
 %             datcat(catk).all_mt_landing_dist = [datcat(catk).all_mt_landing_dist; datmovk.all_mt_landing_dist];
             datcat(catk).all_dist_to_minus = [datcat(catk).all_dist_to_minus; datmovk.all_dist_to_minus];
@@ -228,6 +245,15 @@ for mk = 1:size(motor,2)
                 datcat(catk).cum_track_start_segment = [datcat(catk).cum_track_start_segment; datmovk.cum_track_start_segment'];
             end
             
+        end
+        
+        if zsave == 1
+            save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+            %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+            save_filename = ['post_particle_tracking','_',motor{mk},'_',mt_type{mtk},'_'];
+            fname = fullfile(save_dirname,save_filename);
+            writematrix(datcat(catk).cum_proc_vel,[fname,'procvel.csv'])
+            writematrix(datcat(catk).all_landing_rate,[fname,'landrate.csv'])
         end
         
         if isempty(datcat(catk).cum_run_length) == 1
@@ -331,6 +357,29 @@ for mk = 1:size(motor,2)
         xlabel('Local alpha-value'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Local alpha-value histogram'])
         hold off
         
+        %local alpha-value paused and processive
+        [pausea_n, pausea_edges]=histcounts(datcat(catk).cum_pause_alpha, 'BinWidth', loca_binwidth, 'Normalization', 'pdf');
+        nhist_pausea=pausea_n;
+        xhist_pausea=pausea_edges+(loca_binwidth/2);
+        xhist_pausea(end)=[]; 
+        [proca_n, proca_edges]=histcounts(datcat(catk).cum_proc_alpha, 'BinWidth', loca_binwidth, 'Normalization', 'pdf');
+        nhist_proca=proca_n;
+        xhist_proca=proca_edges+(loca_binwidth/2);
+        xhist_proca(end)=[]; 
+%         opt = statset('MaxIter',1e5,'Display','iter','TolFun',1e-20);
+%         sigmastart = cat(3, 0.01, 0.4);
+%         p0 = struct('mu', [0; 2], 'Sigma', sigmastart, 'ComponentProportion', [0.5; 0.5]);
+%         gmm_loc_alpha = fitgmdist(datcat(catk).cum_loc_alpha, 2, 'start', p0, 'options', opt); %
+%         y_loca = pdf(gmm_loc_alpha,xhist_pausea');
+        figure(pauseprocalpha)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_pausea,nhist_pausea,'FaceColor',[1 0 0], 'FaceAlpha',0.7)
+        hold on 
+        %plot(xhist_pausea,y_loca,'-')
+        bar(xhist_proca,nhist_proca,'FaceColor',[0 0 1], 'FaceAlpha',0.7)
+        xlabel('Local alpha-value'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' paused and processive alpha-value histogram'])
+        hold off
+        
         %instantaneous velocity
         [instvel_n, instvel_edges]=histcounts(datcat(catk).cum_inst_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
         nhist_instvel=instvel_n;
@@ -371,6 +420,36 @@ for mk = 1:size(motor,2)
         plot(xhist_procvel,1.0.*yprocV,'r-');
         plot(xhist_procvel,1.0.*yprocVlo,'r.');
         plot(xhist_procvel,1.0.*yprocVhi,'r.');
+        hold off
+        
+        %instantaneous processive and paused velocity
+        [procvel_n, procvel_edges]=histcounts(datcat(catk).cum_proc_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_procvel=procvel_n;
+        xhist_procvel=procvel_edges+(vel_binwidth/2);
+        xhist_procvel(end)=[]; 
+        [pausevel_n, pausevel_edges]=histcounts(datcat(catk).cum_pause_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+        nhist_pausevel=pausevel_n;
+        xhist_pausevel=pausevel_edges+(vel_binwidth/2);
+        xhist_pausevel(end)=[]; 
+%         opt = statset('mlecustom');
+%         opt = statset(opt,'FunValCheck','off','MaxIter',1e5,'MaxFunEvals',1e5,'Display','iter','TolFun',10e-20);
+%         p0 = [200, 200];
+%         loL = [0, 0];
+%         upL = [1000, 1000];
+%         [estimprocV, pciprocV] = mle(datcat(catk).cum_proc_vel,'Distribution','normal','start',p0,'Options',opt,'LowerBound', loL);%'UpperBound', upL) %
+        figure(pauseprocvel)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_procvel,nhist_procvel,'FaceColor',[0 0 1], 'FaceAlpha',0.7)
+        hold on 
+        bar(xhist_pausevel,nhist_pausevel,'FaceColor',[1 0 0], 'FaceAlpha',0.7)
+        xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' parsed velocity histogram'])
+        xlim([-3000 4000])
+%         yprocV = normpdf(xhist_procvel, estimprocV(1), estimprocV(2));
+%         yprocVlo = normpdf(xhist_procvel, pciprocV(1,1), pciprocV(1,2));
+%         yprocVhi = normpdf(xhist_procvel, pciprocV(2,1), pciprocV(2,2));
+%         plot(xhist_procvel,1.0.*yprocV,'r-');
+%         plot(xhist_procvel,1.0.*yprocVlo,'r.');
+%         plot(xhist_procvel,1.0.*yprocVhi,'r.');
         hold off
         
         % velocity on different segments
@@ -429,6 +508,18 @@ for mk = 1:size(motor,2)
             xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous velocity by segment type histogram'])
             hold off
         end
+        
+        % landing rate on MT
+        [landrate_n, landrate_edges]=histcounts(datcat(catk).all_landing_rate, 'BinWidth', 0.001, 'Normalization', 'count');
+        nhist_landrate=landrate_n;
+        xhist_landrate=landrate_edges+(0.001/2);
+        xhist_landrate(end)=[]; 
+        figure(landrate)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_landrate,nhist_landrate)
+        hold on 
+        xlabel('Landing rate on MT (/\mum /s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing rate'])
+        hold off
         
         % landing position along MT - distance from plus-end
         [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 500, 'Normalization', 'count');
@@ -820,6 +911,16 @@ for mk = 1:size(motor,2)
     end
 end
 
+%%
+
+%violin plot of landing rate
+figure(landrateviolin)
+%violinplot([land_rates{1},land_rates{2},land_rates{3},land_rates{4},land_rates{5},land_rates{6}])
+violinplot(land_rates(:,1),land_rates(:,2))
+hold on 
+xlabel('Condition'), ylabel('Landing rate (/\mum /s)'), title('Landing rate')
+hold off
+        
 %% Analyze
 
 

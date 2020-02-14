@@ -503,8 +503,8 @@ for master_date_ind = 1:size(dates,2)
                     inst_vel = diff(position)./diff(frame_tk.*exp_time);
                     mean_vel = (position(end))/((frame_tk(end)-frame_tk(1)+1)*exp_time);
                     if length (frame_tk) > l_window + 4
-                        proc_vel = diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
-                        pause_vel = diff(position(proc_frames==0))./diff(frame_tk(proc_frames==0).*exp_time);
+                        proc_vel = inst_vel(proc_frames==1); %diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
+                        pause_vel = inst_vel(proc_frames==0); %diff(position(proc_frames==0))./diff(frame_tk(proc_frames==0).*exp_time);
                     end 
 
 

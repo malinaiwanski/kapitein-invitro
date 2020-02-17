@@ -61,6 +61,9 @@ if zplot ~= 0
     figure, instvel = gcf; %initialize figure
     figure, procvel = gcf; %initialize figure
     figure, pauseprocvel = gcf;
+    figure, runduration = gcf;
+    figure, pauseduration = gcf;
+    figure, meanrunvel = gcf;
     figure, landrate = gcf;
     figure, landrateviolin = gcf;
     figure, landpos = gcf;
@@ -147,6 +150,9 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_loc_alpha = [];
         datcat(catk).cum_proc_alpha = [];
         datcat(catk).cum_pause_alpha = [];
+        datcat(catk).cum_run_durations = [];
+        datcat(catk).cum_pause_durations = [];
+        datcat(catk).cum_mean_run_vel = [];
         datcat(catk).cum_norm_landing_pos = [];
         datcat(catk).cum_landing_dist_to_mt_end = [];
         datcat(catk).all_landing_dist = [];
@@ -224,6 +230,9 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
             datcat(catk).cum_proc_alpha = [datcat(catk).cum_proc_alpha; datmovk.cum_proc_alpha];
             datcat(catk).cum_pause_alpha = [datcat(catk).cum_pause_alpha; datmovk.cum_pause_alpha];
+            datcat(catk).cum_run_durations = [datcat(catk).cum_run_durations; datmovk.cum_run_durations];
+            datcat(catk).cum_pause_durations = [datcat(catk).cum_pause_durations; datmovk.cum_pause_durations];
+            datcat(catk).cum_mean_run_vel = [datcat(catk).cum_mean_run_vel; datmovk.cum_mean_run_vel];
             datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
             datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
             datcat(catk).all_landing_dist = [datcat(catk).all_landing_dist; datmovk.all_landing_dist];
@@ -452,6 +461,42 @@ for mk = 1:size(motor,2)
 %         plot(xhist_procvel,1.0.*yprocVhi,'r.');
         hold off
         
+        %run duration
+        [runt_n, runt_edges]=histcounts(datcat(catk).cum_run_durations, 'BinWidth', 5, 'Normalization', 'count');
+        nhist_runt=runt_n;
+        xhist_runt=runt_edges+(5/2);
+        xhist_runt(end)=[]; 
+        figure(runduration)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_runt,nhist_runt)
+        hold on 
+        xlabel('Run duration (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Run duration histogram'])
+        hold off
+        
+        %pause duration
+        [pauset_n, pauset_edges]=histcounts(datcat(catk).cum_pause_durations, 'BinWidth', 5, 'Normalization', 'count');
+        nhist_pauset=pauset_n;
+        xhist_pauset=pauset_edges+(5/2);
+        xhist_pauset(end)=[]; 
+        figure(pauseduration)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_pauset,nhist_pauset)
+        hold on 
+        xlabel('Pause duration (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Pause duration histogram'])
+        hold off
+        
+        %mean velocity in each processive segment
+        [muprocvel_n, muprocvel_edges]=histcounts(datcat(catk).cum_mean_run_vel, 'BinWidth', vel_binwidth, 'Normalization', 'count');
+        nhist_muprocvel=muprocvel_n;
+        xhist_muprocvel=muprocvel_edges+(vel_binwidth/2);
+        xhist_muprocvel(end)=[]; 
+        figure(meanrunvel)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_muprocvel,nhist_muprocvel)
+        hold on 
+        xlabel('Mean run segment velocity (nm/s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Mean run velocity histogram'])
+        hold off
+        
         % velocity on different segments
         if zcap ==1
             %each segment
@@ -510,9 +555,9 @@ for mk = 1:size(motor,2)
         end
         
         % landing rate on MT
-        [landrate_n, landrate_edges]=histcounts(datcat(catk).all_landing_rate, 'BinWidth', 0.001, 'Normalization', 'count');
+        [landrate_n, landrate_edges]=histcounts(datcat(catk).all_landing_rate, 'BinWidth', 0.005, 'Normalization', 'count');
         nhist_landrate=landrate_n;
-        xhist_landrate=landrate_edges+(0.001/2);
+        xhist_landrate=landrate_edges+(0.005/2);
         xhist_landrate(end)=[]; 
         figure(landrate)
         subplot(size(motor,2),size(mt_type,2),catk)

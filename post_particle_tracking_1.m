@@ -258,6 +258,12 @@ for master_date_ind = 1:size(dates,2)
                 time_diff_bw_land = cell(1,num_mts);
                 all_dist_to_minus = [];
                 all_dist_to_plus = [];
+                pause_durations = {};
+                run_durations = {};
+                mean_run_vel = {};
+                cum_run_durations = [];
+                cum_pause_durations = [];
+                cum_mean_run_vel = [];
                 if zcap == 1
                     landing_dist_by_seg = {};
                     segment_lengths = {};
@@ -503,10 +509,91 @@ for master_date_ind = 1:size(dates,2)
                     inst_vel = diff(position)./diff(frame_tk.*exp_time);
                     mean_vel = (position(end))/((frame_tk(end)-frame_tk(1)+1)*exp_time);
                     if length (frame_tk) > l_window + 4
-                        proc_vel = inst_vel(proc_frames==1); %diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
-                        pause_vel = inst_vel(proc_frames==0); %diff(position(proc_frames==0))./diff(frame_tk(proc_frames==0).*exp_time);
-                    end 
+                        motorq_mtind = [];
+                        run_durations{ftk} = [];
+                        pause_durations{ftk} = [];
+                        mean_run_vel{ftk} = [];                       
+                        proc_vel = []; %inst_vel(proc_frames==1); %diff(position(proc_frames==1))./diff(frame_tk(proc_frames==1).*exp_time);
+                        pause_vel = []; %inst_vel(proc_frames==0); %diff(position(proc_frames==0))./diff(frame_tk(proc_frames==0).*exp_time);
 
+                        changes = diff(tmsd_res(:,3)); %-1 means changes processive to paused; 1 means changes paused to processive
+                        changeframes =find(changes); %gives the last frame of each segment - these are not absolute frames, but the first frame of a track is always 1
+                        segment_ends = [changeframes;size(tmsd_res,1)]; %the last frame of each segment including the last frame - these are not absolute frames, but the first frame of a track is always 1
+                        segment_starts = [1; changeframes+1];
+
+                        ind_to_check = sort([segment_ends;segment_starts]);
+                        motorqpos = motor_on_mt{ftk};
+                        for ik = 1:size(ind_to_check,1)
+                            [~,motor_mtind] = ismember(interp_mts{mt_tk}, motorqpos(ind_to_check(ik),:), 'rows');
+                            motor_mtind = find(motor_mtind);
+                            motorq_mtind = [motorq_mtind;motor_mtind];
+                        end
+                        
+                        pn = 0;
+                        rn = 0;
+                        if (isempty(changeframes) && ~isempty(tmsd_res)) %motor does not switch between paused and processive
+                            if tmsd_res(1,3) == 0
+                                pause_durations{ftk} = [pause_durations{ftk}; size(tmsd_res,1)]; %in number of frames
+                                pause_vel = diff(position)./diff(frame_tk.*exp_time);
+                                pn = pn+1;
+                            elseif tmsd_res(1,3) == 1 
+                                proc_mt_ind = motorq_mtind(1):1:motorq_mtind(end);
+                                if length(proc_mt_ind) > 1
+                                    run_durations{ftk} = [run_durations{ftk}; size(tmsd_res,1)]; %in number of frames
+                                    proc_disp = arclength(interp_mts{mt_tk}(proc_mt_ind,1),interp_mts{mt_tk}(proc_mt_ind,2));
+                                    uprocvel = proc_disp/(size(tmsd_res,1)*exp_time);
+                                    mean_run_vel{ftk} = [mean_run_vel{ftk}; uprocvel];
+                                    proc_vel = diff(position)./diff(frame_tk.*exp_time);
+                                    rn = rn+1;
+                                end
+                            end
+                        elseif(~isempty(changeframes)) %motor does switch
+                            spans = [changeframes(1); diff(changeframes); length(changes)+1-changeframes(end)];
+                            for sn = 1:(numel(spans))
+                                if sn == numel(spans)
+                                    if tmsd_res(end,3) == 0
+                                        segment_ind = segment_starts(sn):1:size(tmsd_res,1);
+                                        pause_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);
+                                        pause_durations{ftk} = [pause_durations{ftk}; spans(sn)]; %in number of frames
+                                        pn = pn  + 1;
+                                    elseif tmsd_res(end,3) == 1 
+                                        proc_mt_ind = motorq_mtind(2*sn-1):1:motorq_mtind(2*sn);
+                                        if length(proc_mt_ind) > 1
+                                            segment_ind = segment_starts(sn):1:size(tmsd_res,1);
+                                            run_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);
+                                            run_durations{ftk} = [run_durations{ftk}; spans(sn)]; %in number of frames
+                                            proc_disp = arclength(interp_mts{mt_tk}(proc_mt_ind,1),interp_mts{mt_tk}(proc_mt_ind,2));
+                                            uprocvel = proc_disp/(spans(sn)*exp_time);
+                                            mean_run_vel{ftk} = [mean_run_vel{ftk}; uprocvel];
+                                            rn = rn + 1;
+                                        end
+                                    end
+                                else
+                                    if (changes(changeframes(sn)) == 1) %was paused
+                                        segment_ind = segment_starts(sn):1:segment_starts(sn+1)-1;
+                                        pause_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);
+                                        %store pause time lengths
+                                        pause_durations{ftk} = [pause_durations{ftk}; spans(sn)]; %in number of frames
+                                        pn = pn + 1;
+                                    elseif (changes(changeframes(sn)) == -1) %was processive
+                                        %store run time lengths
+                                        proc_mt_ind = motorq_mtind(2*sn-1):1:motorq_mtind(2*sn);
+                                        if length(proc_mt_ind) > 1
+                                            segment_ind = segment_starts(sn):1:segment_starts(sn+1)-1;
+                                            run_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);                                          
+                                            run_durations{ftk} = [run_durations{ftk}; spans(sn)]; %in number of frames
+                                            proc_disp = arclength(interp_mts{mt_tk}(proc_mt_ind,1),interp_mts{mt_tk}(proc_mt_ind,2));
+                                            uprocvel = proc_disp/(spans(sn)*exp_time);
+                                            mean_run_vel{ftk} = [mean_run_vel{ftk}; uprocvel];
+                                            rn = rn + 1;
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        num_pauses = pn;
+                        num_runs = rn;
+                    end 
 
                     %% Store data
                     traj(ftk).mt = mt_tk;
@@ -531,6 +618,9 @@ for master_date_ind = 1:size(dates,2)
 
                     if length (frame_tk) > l_window + 4
                         traj(ftk).loc_alpha = loc_alpha;
+                        cum_run_durations = [cum_run_durations; run_durations{ftk}];
+                        cum_pause_durations = [cum_pause_durations; pause_durations{ftk}];
+                        cum_mean_run_vel = [cum_mean_run_vel; mean_run_vel{ftk}];
                     end
                     if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
                         traj(ftk).proc_frames = proc_frames;
@@ -571,27 +661,6 @@ for master_date_ind = 1:size(dates,2)
                 end    
 
                 %% analyze track start times and position  
-%                 landing_rate = [];
-%                 track_start_times = cell(num_mts,1);
-%                 track_dist_to_plus_end = {}; 
-%                 all_landing_dist = []; %not grouped by um, but within 3um
-%                 landing_distance = {};
-%                 all_norm_landing_dist = []; %all_landing_dist but normalized by distance from track of interest to MT end that motor lands towards
-%                 all_mt_landing_dist = []; %all_landing_dist but normalized by total MT length
-%                 all_time_diff_bw_land = []; %stores time between landing events of motors that are within 3um of each other when the later motor lands
-%                 time_diff_bw_land = cell(1,num_mts);
-%                 all_dist_to_minus = [];
-%                 all_dist_to_plus = [];
-%                 if zcap == 1
-%                     landing_dist_by_seg = {};
-%                     segment_lengths = {};
-%                     cum_plus_cap_vel = [];
-%                     cum_plus_gdp_vel = [];
-%                     cum_seed_vel = [];
-%                     cum_minus_cap_vel = [];
-%                     cum_minus_gdp_vel = [];
-%                     cum_track_start_segment = [];
-%                 end
                 for mttk = 1:num_mts
                     segment_indices = {};
                     ftk_on_mt = find(cum_mts == mttk); %gives indices of cum_mts, which should match that of ftk
@@ -935,12 +1004,12 @@ for master_date_ind = 1:size(dates,2)
                     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_rate')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])

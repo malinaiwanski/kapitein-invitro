@@ -24,7 +24,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 1;
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -48,8 +48,8 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
-date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
+mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -62,8 +62,13 @@ if zplot ~= 0
     figure, procvel = gcf; %initialize figure
     figure, pauseprocvel = gcf;
     figure, runduration = gcf;
+    figure, rundurationviolin = gcf;
     figure, pauseduration = gcf;
+    figure, pausedurationviolin = gcf;
+    figure, pausenum = gcf;
+    figure, runnum = gcf;
     figure, meanrunvel = gcf;
+    figure, segmurunvelviolin = gcf;
     figure, landrate = gcf;
     figure, landrateviolin = gcf;
     figure, landpos = gcf;
@@ -79,6 +84,7 @@ if zplot ~= 0
     figure, ecdf_timebwlandbydisthist = gcf;
     figure, linear_timebwlandbydisthist = gcf;
     figure, landingdeltime = gcf;
+    figure, timebwlandviolin = gcf;
     figure, ecdf_landingdeltime = gcf;
     figure, landingdeltimeviolin = gcf;
 %     figure, landrelativemotor = gcf;
@@ -107,6 +113,10 @@ num_cat = size(motor,2)*size(mt_type,2);
 catk = 0;
 
 land_rates = [];
+mu_seg_run_vel = [];
+land_delta_t = [];
+pause_durat = [];
+run_durat = [];
 
 for mk = 1:size(motor,2)
     for mtk = 1:size(mt_type,2)
@@ -150,6 +160,8 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_loc_alpha = [];
         datcat(catk).cum_proc_alpha = [];
         datcat(catk).cum_pause_alpha = [];
+        datcat(catk).cum_num_pause = [];
+        datcat(catk).cum_num_run = [];
         datcat(catk).cum_run_durations = [];
         datcat(catk).cum_pause_durations = [];
         datcat(catk).cum_mean_run_vel = [];
@@ -172,6 +184,7 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_track_start_segment = [];
             datcat(catk).landing_dist_by_seg = {};
             datcat(catk).segment_indices = {};
+            datcat(catk).cum_land_rate_by_seg = [];
         end
         
         cum_time_bw_landing = [];
@@ -208,6 +221,7 @@ for mk = 1:size(motor,2)
                 end
                 datcat(catk).landing_dist_by_seg{movk} = datmovk.landing_dist_by_seg;
                 datcat(catk).segment_indices{movk} = datmovk.segment_indices;
+                %datcat(catk).cum_land_rate_by_seg = [datcat(catk).cum_land_rate_by_seg, datmovk.cum_land_rate_by_seg];
             end
             
             temp_a = exist('datmovk.traj.proc_vel');
@@ -230,9 +244,14 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_loc_alpha = [datcat(catk).cum_loc_alpha;  datmovk.cum_loc_alpha];
             datcat(catk).cum_proc_alpha = [datcat(catk).cum_proc_alpha; datmovk.cum_proc_alpha];
             datcat(catk).cum_pause_alpha = [datcat(catk).cum_pause_alpha; datmovk.cum_pause_alpha];
+            datcat(catk).cum_num_pause = [datcat(catk).cum_num_pause,datmovk.traj.num_pauses];
+            datcat(catk).cum_num_run = [datcat(catk).cum_num_run,datmovk.traj.num_runs];
             datcat(catk).cum_run_durations = [datcat(catk).cum_run_durations; datmovk.cum_run_durations];
+            run_durat = [run_durat;datmovk.cum_run_durations, repmat(catk,numel(datmovk.cum_run_durations),1)];
             datcat(catk).cum_pause_durations = [datcat(catk).cum_pause_durations; datmovk.cum_pause_durations];
+            pause_durat = [pause_durat;datmovk.cum_pause_durations, repmat(catk,numel(datmovk.cum_pause_durations),1)];
             datcat(catk).cum_mean_run_vel = [datcat(catk).cum_mean_run_vel; datmovk.cum_mean_run_vel];
+            mu_seg_run_vel = [mu_seg_run_vel;datmovk.cum_mean_run_vel, repmat(catk,numel(datmovk.cum_mean_run_vel),1)];
             datcat(catk).cum_norm_landing_pos = [datcat(catk).cum_norm_landing_pos; datmovk.cum_norm_landing_pos];
             datcat(catk).cum_landing_dist_to_mt_end = [datcat(catk).cum_landing_dist_to_mt_end; datmovk.cum_landing_dist_to_mt_end];
             datcat(catk).all_landing_dist = [datcat(catk).all_landing_dist; datmovk.all_landing_dist];
@@ -244,6 +263,7 @@ for mk = 1:size(motor,2)
             datcat(catk).all_dist_to_minus = [datcat(catk).all_dist_to_minus; datmovk.all_dist_to_minus];
             datcat(catk).all_dist_to_plus = [datcat(catk).all_dist_to_plus; datmovk.all_dist_to_plus];
             datcat(catk).all_time_diff_bw_land = [datcat(catk).all_time_diff_bw_land; datmovk.all_time_diff_bw_land];
+            land_delta_t = [land_delta_t;datmovk.all_time_diff_bw_land, repmat(catk,numel(datmovk.all_time_diff_bw_land),1)];
             datcat(catk).time_diff_bw_land{movk} = datmovk.time_diff_bw_land;
             if zcap == 1
                 datcat(catk).cum_plus_cap_vel = [datcat(catk).cum_plus_cap_vel; datmovk.cum_plus_cap_vel'];
@@ -462,9 +482,9 @@ for mk = 1:size(motor,2)
         hold off
         
         %run duration
-        [runt_n, runt_edges]=histcounts(datcat(catk).cum_run_durations, 'BinWidth', 5, 'Normalization', 'count');
+        [runt_n, runt_edges]=histcounts(datcat(catk).cum_run_durations, 'BinWidth', 3, 'Normalization', 'count');
         nhist_runt=runt_n;
-        xhist_runt=runt_edges+(5/2);
+        xhist_runt=runt_edges+(3/2);
         xhist_runt(end)=[]; 
         figure(runduration)
         subplot(size(motor,2),size(mt_type,2),catk)
@@ -474,15 +494,39 @@ for mk = 1:size(motor,2)
         hold off
         
         %pause duration
-        [pauset_n, pauset_edges]=histcounts(datcat(catk).cum_pause_durations, 'BinWidth', 5, 'Normalization', 'count');
+        [pauset_n, pauset_edges]=histcounts(datcat(catk).cum_pause_durations, 'BinWidth', 3, 'Normalization', 'count');
         nhist_pauset=pauset_n;
-        xhist_pauset=pauset_edges+(5/2);
+        xhist_pauset=pauset_edges+(3/2);
         xhist_pauset(end)=[]; 
         figure(pauseduration)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_pauset,nhist_pauset)
         hold on 
         xlabel('Pause duration (s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Pause duration histogram'])
+        hold off
+        
+        %number of pauses
+        [pausenum_n, pausenum_edges]=histcounts(datcat(catk).cum_num_pause, 'BinWidth', 1, 'Normalization', 'count');
+        nhist_pausenum=pausenum_n;
+        xhist_pausenum=pausenum_edges+(1/2);
+        xhist_pausenum(end)=[]; 
+        figure(pausenum)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_pausenum,nhist_pausenum)
+        hold on 
+        xlabel('Number of pauses in trajectory'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Pause number histogram'])
+        hold off
+        
+        %number of runs
+        [runnum_n, runnum_edges]=histcounts(datcat(catk).cum_num_run, 'BinWidth', 1, 'Normalization', 'count');
+        nhist_runnum=runnum_n;
+        xhist_runnum=runnum_edges+(1/2);
+        xhist_runnum(end)=[]; 
+        figure(runnum)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        bar(xhist_runnum,nhist_runnum)
+        hold on 
+        xlabel('Number of runs in trajectory'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Run number histogram'])
         hold off
         
         %mean velocity in each processive segment
@@ -965,6 +1009,48 @@ violinplot(land_rates(:,1),land_rates(:,2))
 hold on 
 xlabel('Condition'), ylabel('Landing rate (/\mum /s)'), title('Landing rate')
 hold off
+
+%violin plot of mean run segment velocity
+figure(segmurunvelviolin)
+%violinplot([land_rates{1},land_rates{2},land_rates{3},land_rates{4},land_rates{5},land_rates{6}])
+violinplot(mu_seg_run_vel(:,1),mu_seg_run_vel(:,2))
+hold on 
+xlabel('Condition'), ylabel('Segment mean velocity(nm/s)'), title('Mean velocity in processive segments')
+hold off
+
+%violin plot of time between landings within 6um
+figure(timebwlandviolin)
+%violinplot([land_rates{1},land_rates{2},land_rates{3},land_rates{4},land_rates{5},land_rates{6}])
+violinplot(land_delta_t(:,1),land_delta_t(:,2))
+hold on 
+xlabel('Condition'), ylabel('Time between landings (s)'), title('Time between subsequent landings within 6um of MT')
+hold off
+
+%violin plot of pause duration
+figure(pausedurationviolin)
+%violinplot([land_rates{1},land_rates{2},land_rates{3},land_rates{4},land_rates{5},land_rates{6}])
+violinplot(pause_durat(:,1),pause_durat(:,2))
+hold on 
+xlabel('Condition'), ylabel('Pause duration (s)'), title('Duration of paused segments')
+hold off
+
+%violin plot of run duration
+figure(rundurationviolin)
+%violinplot([land_rates{1},land_rates{2},land_rates{3},land_rates{4},land_rates{5},land_rates{6}])
+violinplot(run_durat(:,1),run_durat(:,2))
+hold on 
+xlabel('Condition'), ylabel('Run duration (s)'), title('Duration of processive segments')
+hold off
+
+% for catk = 1:num_cat
+%     if zcap == 1
+%         plus_cap_rate = [datcat(catk).cum_land_rate_by_seg(1,:),repmat(catk,numel(datmovk.cum_run_durations),1)];
+%         plus_gdp_rate = [datcat(catk).cum_land_rate_by_seg(2,:),repmat(catk,numel(datmovk.cum_run_durations),1)];
+%         seed_rate = [datcat(catk).cum_land_rate_by_seg(3,:),repmat(catk,numel(datmovk.cum_run_durations),1)];
+%         minus_gdp_rate = [datcat(catk).cum_land_rate_by_seg(4,:),repmat(catk,numel(datmovk.cum_run_durations),1)];
+%         minus_cap_rate = [datcat(catk).cum_land_rate_by_seg(5,:),repmat(catk,numel(datmovk.cum_run_durations),1)];
+%     end
+% end
         
 %% Analyze
 

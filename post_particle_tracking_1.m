@@ -33,8 +33,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
 motors = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_types = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
-dates = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
+mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -63,7 +63,7 @@ for master_date_ind = 1:size(dates,2)
                 %% Options (make 0 to NOT perform related action, 1 to perform)
                 zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
                 zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-                zcap = 0; %set to 1 if using capped MTs
+                zcap = 1; %set to 1 if using capped MTs
 
                 % Filtering
                 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -273,6 +273,7 @@ for master_date_ind = 1:size(dates,2)
                     cum_minus_cap_vel = [];
                     cum_minus_gdp_vel = [];
                     cum_track_start_segment = [];
+                    cum_land_rate_by_seg = [];
                 end
 
                 %% Analyze
@@ -621,6 +622,8 @@ for master_date_ind = 1:size(dates,2)
                         cum_run_durations = [cum_run_durations; run_durations{ftk}];
                         cum_pause_durations = [cum_pause_durations; pause_durations{ftk}];
                         cum_mean_run_vel = [cum_mean_run_vel; mean_run_vel{ftk}];
+                        traj(ftk).num_pauses = num_pauses;
+                        traj(ftk).num_runs = num_runs;
                     end
                     if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
                         traj(ftk).proc_frames = proc_frames;
@@ -929,14 +932,40 @@ for master_date_ind = 1:size(dates,2)
                                             scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),28,'g','filled')
                                         end
                                     end
-                                    %save results
+                                %save results
                                 traj(ftk_on_mt(i)).plus_cap_vel = plus_cap_vel;
                                 traj(ftk_on_mt(i)).plus_gdp_vel = plus_gdp_vel;
                                 traj(ftk_on_mt(i)).seed_vel = seed_vel;
                                 traj(ftk_on_mt(i)).minus_gdp_vel = minus_gdp_vel;
                                 traj(ftk_on_mt(i)).minus_cap_cel = minus_cap_vel;
                                 traj(ftk_on_mt(i)).track_start_segment = track_start_segment;  
+                                
+                                tot_ind = numel(traj(ftk_on_mt(i)).frames);
+                                
+                                traj(ftk_on_mt(i)).plus_cap_ind = zeros(tot_ind,1);
+                                traj(ftk_on_mt(i)).plus_gdp_ind = zeros(tot_ind,1);
+                                traj(ftk_on_mt(i)).seed_ind = zeros(tot_ind,1);
+                                if ~isempty(minus_gdp_vel)
+                                    traj(ftk_on_mt(i)).minus_gdp_ind = zeros(tot_ind,1);
+                                else
+                                    traj(ftk_on_mt(i)).minus_gdp_ind = [];
                                 end
+                                if ~isempty(minus_cap_vel)
+                                    traj(ftk_on_mt(i)).minus_cap_ind = zeros(tot_ind,1);
+                                else
+                                    traj(ftk_on_mt(i)).minus_cap_ind = [];
+                                end
+                                
+                                traj(ftk_on_mt(i)).plus_cap_ind(plus_cap_ind) = 1;
+                                traj(ftk_on_mt(i)).plus_gdp_ind(plus_gdp_ind) = 1;
+                                traj(ftk_on_mt(i)).seed_ind(seed_ind) = 1;
+                                if ~isempty(minus_gdp_vel)
+                                    traj(ftk_on_mt(i)).minus_gdp_ind(minus_gdp_ind) = 1;
+                                end
+                                if ~isempty(minus_cap_vel)
+                                    traj(ftk_on_mt(i)).minus_cap_ind(minus_cap_ind) = 1;
+                                end
+                            end
                                 
                                                                     
                                 %analyze landing distance to other motors based on segments
@@ -967,10 +996,19 @@ for master_date_ind = 1:size(dates,2)
                                     end
                                 end
                             end
+                            land_rate_by_seg = double.empty(5,0);
+                            mtedges = 0.5:1:(0.5+segment_annotate);
+                            [land_num_by_seg, ~]=histcounts(cum_track_start_segment, 'BinEdges', mtedges, 'Normalization', 'count');
+                            land_rate_by_seg = land_num_by_seg'./((segment_lengths{mttk}./1000).*num_frames.*exp_time);
+                            
                         end
                     end
                 end
-
+                
+                if zcap == 1
+                    cum_land_rate_by_seg = [cum_land_rate_by_seg, land_rate_by_seg];
+                end
+                
                 %% Plot parameters to check data
                 if zplot ~=0
                 %     figure,totrl=gcf; %initialize figure
@@ -1004,7 +1042,7 @@ for master_date_ind = 1:size(dates,2)
                     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])

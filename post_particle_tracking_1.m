@@ -33,8 +33,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
 motors = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
+mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
+dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -230,8 +230,10 @@ for master_date_ind = 1:size(dates,2)
 
                 end
                 %% Initialize variables
+                traj = struct([]);
                 cum_run_length = [];
                 censored = []; %track reaches end of MT
+                cum_censored = [];
                 cum_mean_vel = [];
                 cum_proc_vel = [];
                 cum_pause_vel = [];
@@ -1005,7 +1007,8 @@ for master_date_ind = 1:size(dates,2)
                     end
                 end
                 
-                if zcap == 1
+                temp_a = exist('land_rate_by_seg');
+                if zcap == 1 && temp_a == 1
                     cum_land_rate_by_seg = [cum_land_rate_by_seg, land_rate_by_seg];
                 end
                 
@@ -1040,7 +1043,7 @@ for master_date_ind = 1:size(dates,2)
                 if zsave ~= 0
                     save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
                     %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
-                    save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum)];
+                    save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum),'.mat'];
                     if zcap == 1
                         save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])

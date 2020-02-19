@@ -48,8 +48,8 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
-date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %
+mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
+date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -203,6 +203,11 @@ for mk = 1:size(motor,2)
                 disp('ERROR: Data mismatch - try re-running post_particle_tracking_1')
             end
             
+            if isempty(datmovk.traj) == 1
+                disp('Movie contains no trajectories')
+                continue
+            end
+            
             %save data
             datcat(catk).traj{movk} = datmovk.traj;
             datcat(catk).mt_id{movk} = datmovk.traj.mt;
@@ -283,6 +288,8 @@ for mk = 1:size(motor,2)
             fname = fullfile(save_dirname,save_filename);
             writematrix(datcat(catk).cum_proc_vel,[fname,'procvel.csv'])
             writematrix(datcat(catk).all_landing_rate,[fname,'landrate.csv'])
+            writematrix(datcat(catk).cum_mean_run_vel,[fname,'meanprocvel.csv'])
+            writematrix(datcat(catk).cum_pause_durations,[fname,'pauseduration.csv'])
         end
         
         if isempty(datcat(catk).cum_run_length) == 1

@@ -275,7 +275,7 @@ for master_date_ind = 1:size(dates,2)
                     cum_minus_cap_vel = [];
                     cum_minus_gdp_vel = [];
                     cum_track_start_segment = [];
-                    cum_land_rate_by_seg = [];
+                    cum_land_rate_by_seg = cell(5,1); %double.empty(5,0); %[];
                 end
 
                 %% Analyze
@@ -1002,15 +1002,17 @@ for master_date_ind = 1:size(dates,2)
                             mtedges = 0.5:1:(0.5+segment_annotate);
                             [land_num_by_seg, ~]=histcounts(cum_track_start_segment, 'BinEdges', mtedges, 'Normalization', 'count');
                             land_rate_by_seg = land_num_by_seg'./((segment_lengths{mttk}./1000).*num_frames.*exp_time);
-                            
+                            for segi = 1:segment_annotate
+                                cum_land_rate_by_seg{segi} = [cum_land_rate_by_seg{segi}, land_rate_by_seg(segi)];
+                            end
                         end
                     end
                 end
                 
-                temp_a = exist('land_rate_by_seg');
-                if zcap == 1 && temp_a == 1
-                    cum_land_rate_by_seg = [cum_land_rate_by_seg, land_rate_by_seg];
-                end
+%                 temp_a = exist('land_rate_by_seg');
+%                 if zcap == 1 && temp_a == 1
+%                     cum_land_rate_by_seg = [cum_land_rate_by_seg, land_rate_by_seg];
+%                 end
                 
                 %% Plot parameters to check data
                 if zplot ~=0

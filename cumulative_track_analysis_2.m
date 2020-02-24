@@ -100,6 +100,7 @@ if zplot ~= 0
         figure, segmenttypevel = gcf; %initialize figure 
         figure, trackstartsegment = gcf; %initialize figure
         figure, trackstartsegmenttype = gcf;
+        figure, landratebyseg = gcf;
     end
 end
 %% Initialize variables
@@ -184,7 +185,8 @@ for mk = 1:size(motor,2)
             datcat(catk).cum_track_start_segment = [];
             datcat(catk).landing_dist_by_seg = {};
             datcat(catk).segment_indices = {};
-            datcat(catk).cum_land_rate_by_seg = [];
+            datcat(catk).cum_land_rate_by_seg = cell(5,1);
+            landrateseg{catk} = [];
         end
         
         cum_time_bw_landing = [];
@@ -222,11 +224,13 @@ for mk = 1:size(motor,2)
                     nzsegment_lengths = nonzeros(datcat(catk).segment_lengths{1,movk}{1,i});
                     for j = 1:size(nzsegment_lengths,1) %each segment in MT
                         cum_segment_lengths(j) = cum_segment_lengths(j) + nzsegment_lengths(j,1);
+                        datcat(catk).cum_land_rate_by_seg{j} = [datcat(catk).cum_land_rate_by_seg{j}, datmovk.cum_land_rate_by_seg(j)];
+                        landrateseg{catk} = [landrateseg{catk};datmovk.cum_land_rate_by_seg{j}', repmat(j,numel(datmovk.cum_land_rate_by_seg{j}),1)];
                     end
                 end
                 datcat(catk).landing_dist_by_seg{movk} = datmovk.landing_dist_by_seg;
                 datcat(catk).segment_indices{movk} = datmovk.segment_indices;
-                %datcat(catk).cum_land_rate_by_seg = [datcat(catk).cum_land_rate_by_seg, datmovk.cum_land_rate_by_seg];
+                
             end
             
             temp_a = exist('datmovk.traj.proc_vel');
@@ -603,6 +607,19 @@ for mk = 1:size(motor,2)
             bar(xhist_seedvel,nhist_seedvel,'k','FaceAlpha',0.6)     
             xlabel('Instantaneous velocity (nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous velocity by segment type histogram'])
             hold off
+            
+            %landing rate by segment
+            % [lrseg_n,lrseg_edges]=histcounts(landrateseg{catk}, 'BinWidth', 0.01, 'Normalization', 'count');
+            % nhist_lrseg=lrseg_n;
+            % xhist_lrseg=lrseg_edges+(0.01/2);
+            % xhist_lrseg(end)=[]; 
+            figure(landratebyseg)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            violinplot(landrateseg{catk}(:,1),landrateseg{catk}(:,2))
+            hold on 
+            xlabel('Segment'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
+            hold off
+            
         end
         
         % landing rate on MT

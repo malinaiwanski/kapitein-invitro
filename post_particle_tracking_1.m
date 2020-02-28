@@ -33,8 +33,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
 motors = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
-dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
+mt_types = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %{'cap','taxol_cap'}; %
+dates = {'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %{'2019-12-09','2019-12-13'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -63,7 +63,7 @@ for master_date_ind = 1:size(dates,2)
                 %% Options (make 0 to NOT perform related action, 1 to perform)
                 zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
                 zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-                zcap = 1; %set to 1 if using capped MTs
+                zcap = 0; %set to 1 if using capped MTs
 
                 % Filtering
                 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -675,7 +675,7 @@ for master_date_ind = 1:size(dates,2)
                     
                     landing_rate = [landing_rate; numel(ftk_on_mt)/((tot_mt_length/1000)*(num_frames*exp_time))]; %[um-1s-1]
                         
-                    landing_distance{mttk} = cell(size(ftk_on_mt,1),size(ftk_on_mt,1)-1);
+                    landing_distance{mttk} = cell(max(ftk_on_mt),max(ftk_on_mt)); %cell(size(ftk_on_mt,1),size(ftk_on_mt,1));
                     landing_dist_by_seg{mttk} = cell(5,1);
                     if ~isempty(ftk_on_mt)
                         if zplot ~= 0
@@ -746,7 +746,7 @@ for master_date_ind = 1:size(dates,2)
                                             [~,land_mtind] = ismember(interp_mts{mttk}, traj(other_traj_ind(jk)).pos_on_interpmt(1,:), 'rows');
                                             land_mtind = find(land_mtind);
                                             if land_mtind == motorq_mtind
-                                                dist_bw = 10; %if they are assigned to the same interp_mt index, they are at most 10nm apart
+                                                dist_bw = 10; %if they are assigned to the same interp_mt index, they are at most 10nm apart %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%TRY THIS WITH 0 
                                                 neg_dist = 0; %assume towards plus end
                                                 norm_dist = motor_to_plus;
                                             else
@@ -772,7 +772,7 @@ for master_date_ind = 1:size(dates,2)
 %                                            all_time_diff_bw_land = [all_time_diff_bw_land; (frames_to_check(framek)-frames_to_check(1))*exp_time]; %[s]
                                             if abs(dist_bw) <= 3000 %lands within 3um of existing track
                                                 all_landing_dist = [all_landing_dist; dist_bw]; %within 3um
-                                                landing_distance{mttk}{j,jk} = [frames_to_check(framek), dist_bw]; %{mttk}{ftk_on_mt(j),other_traj_ind(jk)}
+                                                landing_distance{mttk}{ftk_on_mt(j),other_traj_ind(jk)} = [frames_to_check(framek), dist_bw]; %{mttk}{ftk_on_mt(j),other_traj_ind(jk)}
                                           end
                                         end
                                     end
@@ -934,40 +934,40 @@ for master_date_ind = 1:size(dates,2)
                                             scatter(boundaries_on_mt{mttk}(2,1),boundaries_on_mt{mttk}(2,2),28,'g','filled')
                                         end
                                     end
-                                %save results
-                                traj(ftk_on_mt(i)).plus_cap_vel = plus_cap_vel;
-                                traj(ftk_on_mt(i)).plus_gdp_vel = plus_gdp_vel;
-                                traj(ftk_on_mt(i)).seed_vel = seed_vel;
-                                traj(ftk_on_mt(i)).minus_gdp_vel = minus_gdp_vel;
-                                traj(ftk_on_mt(i)).minus_cap_cel = minus_cap_vel;
-                                traj(ftk_on_mt(i)).track_start_segment = track_start_segment;  
-                                
-                                tot_ind = numel(traj(ftk_on_mt(i)).frames);
-                                
-                                traj(ftk_on_mt(i)).plus_cap_ind = zeros(tot_ind,1);
-                                traj(ftk_on_mt(i)).plus_gdp_ind = zeros(tot_ind,1);
-                                traj(ftk_on_mt(i)).seed_ind = zeros(tot_ind,1);
-                                if ~isempty(minus_gdp_vel)
-                                    traj(ftk_on_mt(i)).minus_gdp_ind = zeros(tot_ind,1);
-                                else
-                                    traj(ftk_on_mt(i)).minus_gdp_ind = [];
+                                    %save results
+                                    traj(ftk_on_mt(i)).plus_cap_vel = plus_cap_vel;
+                                    traj(ftk_on_mt(i)).plus_gdp_vel = plus_gdp_vel;
+                                    traj(ftk_on_mt(i)).seed_vel = seed_vel;
+                                    traj(ftk_on_mt(i)).minus_gdp_vel = minus_gdp_vel;
+                                    traj(ftk_on_mt(i)).minus_cap_cel = minus_cap_vel;
+                                    traj(ftk_on_mt(i)).track_start_segment = track_start_segment;  
+
+                                    tot_ind = numel(traj(ftk_on_mt(i)).frames);
+
+                                    traj(ftk_on_mt(i)).plus_cap_ind = zeros(tot_ind,1);
+                                    traj(ftk_on_mt(i)).plus_gdp_ind = zeros(tot_ind,1);
+                                    traj(ftk_on_mt(i)).seed_ind = zeros(tot_ind,1);
+                                    if ~isempty(minus_gdp_vel)
+                                        traj(ftk_on_mt(i)).minus_gdp_ind = zeros(tot_ind,1);
+                                    else
+                                        traj(ftk_on_mt(i)).minus_gdp_ind = [];
+                                    end
+                                    if ~isempty(minus_cap_vel)
+                                        traj(ftk_on_mt(i)).minus_cap_ind = zeros(tot_ind,1);
+                                    else
+                                        traj(ftk_on_mt(i)).minus_cap_ind = [];
+                                    end
+
+                                    traj(ftk_on_mt(i)).plus_cap_ind(plus_cap_ind) = 1;
+                                    traj(ftk_on_mt(i)).plus_gdp_ind(plus_gdp_ind) = 1;
+                                    traj(ftk_on_mt(i)).seed_ind(seed_ind) = 1;
+                                    if ~isempty(minus_gdp_vel)
+                                        traj(ftk_on_mt(i)).minus_gdp_ind(minus_gdp_ind) = 1;
+                                    end
+                                    if ~isempty(minus_cap_vel)
+                                        traj(ftk_on_mt(i)).minus_cap_ind(minus_cap_ind) = 1;
+                                    end
                                 end
-                                if ~isempty(minus_cap_vel)
-                                    traj(ftk_on_mt(i)).minus_cap_ind = zeros(tot_ind,1);
-                                else
-                                    traj(ftk_on_mt(i)).minus_cap_ind = [];
-                                end
-                                
-                                traj(ftk_on_mt(i)).plus_cap_ind(plus_cap_ind) = 1;
-                                traj(ftk_on_mt(i)).plus_gdp_ind(plus_gdp_ind) = 1;
-                                traj(ftk_on_mt(i)).seed_ind(seed_ind) = 1;
-                                if ~isempty(minus_gdp_vel)
-                                    traj(ftk_on_mt(i)).minus_gdp_ind(minus_gdp_ind) = 1;
-                                end
-                                if ~isempty(minus_cap_vel)
-                                    traj(ftk_on_mt(i)).minus_cap_ind(minus_cap_ind) = 1;
-                                end
-                            end
                                 
                                                                     
                                 %analyze landing distance to other motors based on segments
@@ -976,23 +976,30 @@ for master_date_ind = 1:size(dates,2)
                                 %k = 1 plus cap, k=2 plus gdp, k=3 seed,
                                 %...
                                 if ~isempty(landing_distance{mttk}) == 1
-                                    for i = 1:size(ftk_on_mt,1) %each track on MT
-                                        other_traj_ind = setdiff(ftk_on_mt,ftk_on_mt(i));
-                                        for j = size(other_traj_ind, 1) %each "other" track on MT
-                                            if ~isempty(landing_distance{mttk}{i,j}) == 1
-                                                for k = 1:size(segment_indices{mttk},2)
-                                                    if ismember(landing_distance{mttk}{i,j}(1,1),traj(ftk_on_mt(i)).frames(segment_indices{mttk}{ftk_on_mt(i),k})) == 1
-                                                        motqseg = k;
-
+                                    for traji = 1:size(ftk_on_mt,1) %each track on MT
+                                        other_traj_ind = setdiff(ftk_on_mt,ftk_on_mt(traji));
+                                        for trajj = size(other_traj_ind, 1) %each "other" track on MT
+                                            if ~isempty(other_traj_ind) == 1 && ~isempty(landing_distance{mttk}{ftk_on_mt(traji),other_traj_ind(trajj)}) == 1
+                                                frameq = landing_distance{mttk}{ftk_on_mt(traji),other_traj_ind(trajj)}(1,1);
+                                                for segk = 1:size(segment_indices{mttk},2) %each segment (1:3 or 1:5)
+                                                    if ismember(frameq,traj(ftk_on_mt(traji)).frames(segment_indices{mttk}{ftk_on_mt(traji),segk})) == 1
+                                                        motqseg = segk;
+                                                        checkseg = 1;
+                                                    else
+                                                        checkseg = 0;
+                                                        motqseg = -1;
                                                     end
-                                                    if ismember(landing_distance{mttk}{i,j}(1,1),traj(other_traj_ind(j)).frames(segment_indices{mttk}{other_traj_ind(j),k})) == 1
-                                                        otherseg = k;
+                                                    if ismember(frameq,traj(other_traj_ind(trajj)).frames(segment_indices{mttk}{other_traj_ind(trajj),segk})) == 1
+                                                        otherseg = segk;
+                                                        checkseg = 1;
+                                                    else
+                                                        checkseg = 0;
+                                                        otherseg = -2;
                                                     end
-
-                                                end
-                                                if motqseg == otherseg %motors present on same seg %%%%% currently not checking whether segment itself is long enough!!
-                                                    landing_dist_by_seg{mttk}{motqseg} = [landing_dist_by_seg{mttk}{motqseg},landing_distance{mttk}{i,j}(1,2)]; %{mttk}{ftk_on_mt(i),other_traj_ind(j)}
-                                                end
+                                                    if checkseg == 1 && motqseg == otherseg %motors present on same seg %%%%% currently not checking whether segment itself is long enough!!
+                                                        landing_dist_by_seg{mttk}{motqseg} = [landing_dist_by_seg{mttk}{motqseg},landing_distance{mttk}{ftk_on_mt(traji),other_traj_ind(trajj)}(1,2)]; %{mttk}{ftk_on_mt(i),other_traj_ind(j)}
+                                                    end
+                                                end 
                                             end
                                         end
                                     end

@@ -101,6 +101,7 @@ if zplot ~= 0
         figure, trackstartsegment = gcf; %initialize figure
         figure, trackstartsegmenttype = gcf;
         figure, landratebyseg = gcf;
+        figure, landratebyseg2 = gcf;
     end
 end
 %% Initialize variables
@@ -228,6 +229,9 @@ for mk = 1:size(motor,2)
                         landrateseg{catk} = [landrateseg{catk};datmovk.cum_land_rate_by_seg{j}', repmat(j,numel(datmovk.cum_land_rate_by_seg{j}),1)];
                     end
                 end
+                landrateseg3{catk} = landrateseg{catk};
+                landrateseg3{catk}(landrateseg3{catk}(:,2)==4,2) = 2;
+                landrateseg3{catk}(landrateseg3{catk}(:,2)==5,2) = 1;
                 datcat(catk).landing_dist_by_seg{movk} = datmovk.landing_dist_by_seg;
                 datcat(catk).segment_indices{movk} = datmovk.segment_indices;
                 
@@ -620,6 +624,12 @@ for mk = 1:size(motor,2)
             xlabel('Segment'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
             hold off
             
+            figure(landratebyseg2)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            violinplot(landrateseg3{catk}(:,1),landrateseg3{catk}(:,2))
+            hold on 
+            xlabel('Segment'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
+            hold off
         end
         
         % landing rate on MT

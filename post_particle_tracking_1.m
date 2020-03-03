@@ -33,8 +33,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
 motors = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_types = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %{'cap','taxol_cap'}; %
-dates = {'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %{'2019-12-09','2019-12-13'}; %
+mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
+dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -63,7 +63,8 @@ for master_date_ind = 1:size(dates,2)
                 %% Options (make 0 to NOT perform related action, 1 to perform)
                 zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
                 zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-                zcap = 0; %set to 1 if using capped MTs
+                zcap = 1; %set to 1 if using capped MTs
+                zcurve = 0; %set to 1 if Curve Tracing was used to trace the MTs in Fiji
 
                 % Filtering
                 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -98,19 +99,40 @@ for master_date_ind = 1:size(dates,2)
 
                 %%
                 % Read in microtubule data
-                mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
-                fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
-                temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
-                fclose(fid); 
+                if zcurve == 0
+                    mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
+                    fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
+                    temp_mt_data = textscan(fid,'%s %s %s %s','HeaderLines',1,'Delimiter',',','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
+                    fclose(fid); 
+                else
+                    mt_file = dir(fullfile(dirname,'MT*.csv')); %finds appropriate file
+                    fid=fopen(fullfile(dirname,mt_file(filenum).name)); %opens the specified file in the list and imports data
+                    temp_mt_dat = textscan(fid,'%s %*s %s %*s %s %s %*s %s %*s %*s %*s %*s','HeaderLines',1,'Delimiter',',','EndOfLine','\n');
+                    fclose(fid);
+                    temp_mt_dat = reshape([temp_mt_dat{:}],size(temp_mt_dat{1,1},1),size(temp_mt_dat,2));
+                    response_intens = zeros(size(temp_mt_dat,1),1);
+                    for i = 1: size(temp_mt_dat,1)
+                        response_intens(i) = str2double(temp_mt_dat{i,5});
+                    end
+                    temp_mt_dat(:,5) = [];
+                    temp_mt_dat_old = temp_mt_dat;
+                    temp_mt_dat(:,1) = temp_mt_dat_old(:,2);
+                    temp_mt_dat(:,2) = temp_mt_dat_old(:,1);
+                    temp_mt_data = zeros(size(temp_mt_dat,1),size(temp_mt_dat,2));
+                    for i = 1:size(temp_mt_data,1)
+                        for j = 1:size(temp_mt_data,2)
+                            temp_mt_data(i,j) = str2double(temp_mt_dat{i,j});
+                        end
+                    end
+                end
                 [mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap);
-
                 all_interp_mts = [];
                 for j = 1: size(interp_mts,1)
                     all_interp_mts = [all_interp_mts;interp_mts{j}];
                 end
                 filt_mt_ind = find(skip_mts);
                 num_mts = size(mts,1);
-
+                
                 % For capped MTs, read in segment data
                 if zcap == 1
                     cap_file = dir(fullfile(dirname,'int*.csv')); %finds appropriate file
@@ -966,6 +988,29 @@ for master_date_ind = 1:size(dates,2)
                                     end
                                     if ~isempty(minus_cap_vel)
                                         traj(ftk_on_mt(i)).minus_cap_ind(minus_cap_ind) = 1;
+                                    end
+                                    
+                                    
+                                    %%% ADD STUFF HERE ABOUT PROC AND GDP
+                                    %%% ETC.
+                                    pause_ind = ones(size(traj(ftk_on_mt(i)).proc_frames,1),1);
+                                    pause_ind = pause_ind -traj(ftk_on_mt(i)).proc_frames;
+                                    if ~isempty(traj(ftk_on_mt(i)).proc_frames) == 1 %length (traj(ftk_on_mt(i)).frames) > l_window + 4
+                                        if ~isempty(minus_cap_vel) == 1
+                                            proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                            proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                            proc_seed_ind = traj(ftk_on_mt(i)).seed_ind.* traj(ftk_on_mt(i)).proc_frames;
+                                            pause_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* pause_ind;
+                                            pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* pause_ind;
+                                            pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
+                                        else
+                                            proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                            proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                            proc_seed_ind = traj(ftk_on_mt(i)).seed_ind.* traj(ftk_on_mt(i)).proc_frames;
+                                            pause_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind].* pause_ind;
+                                            pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* pause_ind;
+                                            pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
+                                        end
                                     end
                                 end
                                 

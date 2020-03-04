@@ -578,14 +578,14 @@ for master_date_ind = 1:size(dates,2)
                                 if sn == numel(spans)
                                     if tmsd_res(end,3) == 0
                                         segment_ind = segment_starts(sn):1:size(tmsd_res,1);
-                                        pause_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);
+                                        pause_vel = [pause_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)];
                                         pause_durations{ftk} = [pause_durations{ftk}; spans(sn)]; %in number of frames
                                         pn = pn  + 1;
                                     elseif tmsd_res(end,3) == 1 
                                         proc_mt_ind = motorq_mtind(2*sn-1):1:motorq_mtind(2*sn);
                                         if length(proc_mt_ind) > 1
                                             segment_ind = segment_starts(sn):1:size(tmsd_res,1);
-                                            run_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);
+                                            proc_vel = [proc_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)]; %changed from run_vel
                                             run_durations{ftk} = [run_durations{ftk}; spans(sn)]; %in number of frames
                                             proc_disp = arclength(interp_mts{mt_tk}(proc_mt_ind,1),interp_mts{mt_tk}(proc_mt_ind,2));
                                             uprocvel = proc_disp/(spans(sn)*exp_time);
@@ -596,7 +596,7 @@ for master_date_ind = 1:size(dates,2)
                                 else
                                     if (changes(changeframes(sn)) == 1) %was paused
                                         segment_ind = segment_starts(sn):1:segment_starts(sn+1)-1;
-                                        pause_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);
+                                        pause_vel = [pause_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)];
                                         %store pause time lengths
                                         pause_durations{ftk} = [pause_durations{ftk}; spans(sn)]; %in number of frames
                                         pn = pn + 1;
@@ -605,7 +605,7 @@ for master_date_ind = 1:size(dates,2)
                                         proc_mt_ind = motorq_mtind(2*sn-1):1:motorq_mtind(2*sn);
                                         if length(proc_mt_ind) > 1
                                             segment_ind = segment_starts(sn):1:segment_starts(sn+1)-1;
-                                            run_vel = diff(position(segment_ind))./diff(frame_tk(segment_ind).*exp_time);                                          
+                                            proc_vel = [proc_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)];  %changed from run_vel                                        
                                             run_durations{ftk} = [run_durations{ftk}; spans(sn)]; %in number of frames
                                             proc_disp = arclength(interp_mts{mt_tk}(proc_mt_ind,1),interp_mts{mt_tk}(proc_mt_ind,2));
                                             uprocvel = proc_disp/(spans(sn)*exp_time);
@@ -993,9 +993,11 @@ for master_date_ind = 1:size(dates,2)
                                     
                                     %%% ADD STUFF HERE ABOUT PROC AND GDP
                                     %%% ETC.
+                                    temp_a = exist('traj(ftk_on_mt(i)).proc_frames');
+                                    if temp_a ~=0
+                                    %if ~isempty(traj(ftk_on_mt(i)).proc_frames) == 1 %length (traj(ftk_on_mt(i)).frames) > l_window + 4
                                     pause_ind = ones(size(traj(ftk_on_mt(i)).proc_frames,1),1);
                                     pause_ind = pause_ind -traj(ftk_on_mt(i)).proc_frames;
-                                    if ~isempty(traj(ftk_on_mt(i)).proc_frames) == 1 %length (traj(ftk_on_mt(i)).frames) > l_window + 4
                                         if ~isempty(minus_cap_vel) == 1
                                             proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
                                             proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;

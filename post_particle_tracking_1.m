@@ -649,8 +649,10 @@ for master_date_ind = 1:size(dates,2)
                         traj(ftk).num_pauses = num_pauses;
                         traj(ftk).num_runs = num_runs;
                     end
-                    if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
+                    if length (frame_tk) > l_window + 4
                         traj(ftk).proc_frames = proc_frames;
+                    end
+                    if length (frame_tk) > l_window + 4 && ~isempty(proc_vel) == 1
                         traj(ftk).proc_vel = proc_vel(1,:);
                     end
                     if length (frame_tk) > l_window + 4 && ~isempty(pause_vel) == 1
@@ -969,15 +971,18 @@ for master_date_ind = 1:size(dates,2)
                                     traj(ftk_on_mt(i)).plus_cap_ind = zeros(tot_ind,1);
                                     traj(ftk_on_mt(i)).plus_gdp_ind = zeros(tot_ind,1);
                                     traj(ftk_on_mt(i)).seed_ind = zeros(tot_ind,1);
-                                    if ~isempty(minus_gdp_vel)
+                                    
+                                    if segment_annotate == 5
+                                    %if ~isempty(minus_gdp_vel)
                                         traj(ftk_on_mt(i)).minus_gdp_ind = zeros(tot_ind,1);
-                                    else
-                                        traj(ftk_on_mt(i)).minus_gdp_ind = [];
-                                    end
-                                    if ~isempty(minus_cap_vel)
+%                                     else
+%                                         traj(ftk_on_mt(i)).minus_gdp_ind = [];
+                                    %end
+                                    %if ~isempty(minus_cap_vel)
                                         traj(ftk_on_mt(i)).minus_cap_ind = zeros(tot_ind,1);
-                                    else
-                                        traj(ftk_on_mt(i)).minus_cap_ind = [];
+%                                     else
+%                                         traj(ftk_on_mt(i)).minus_cap_ind = [];
+                                    %end
                                     end
 
                                     traj(ftk_on_mt(i)).plus_cap_ind(plus_cap_ind) = 1;
@@ -993,25 +998,28 @@ for master_date_ind = 1:size(dates,2)
                                     
                                     %%% ADD STUFF HERE ABOUT PROC AND GDP
                                     %%% ETC.
-                                    temp_a = exist('traj(ftk_on_mt(i)).proc_frames');
-                                    if temp_a ~=0
-                                    %if ~isempty(traj(ftk_on_mt(i)).proc_frames) == 1 %length (traj(ftk_on_mt(i)).frames) > l_window + 4
-                                    pause_ind = ones(size(traj(ftk_on_mt(i)).proc_frames,1),1);
-                                    pause_ind = pause_ind -traj(ftk_on_mt(i)).proc_frames;
-                                        if ~isempty(minus_cap_vel) == 1
-                                            proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
-                                            proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;
-                                            proc_seed_ind = traj(ftk_on_mt(i)).seed_ind.* traj(ftk_on_mt(i)).proc_frames;
-                                            pause_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* pause_ind;
-                                            pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* pause_ind;
-                                            pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
-                                        else
-                                            proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
-                                            proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;
-                                            proc_seed_ind = traj(ftk_on_mt(i)).seed_ind.* traj(ftk_on_mt(i)).proc_frames;
-                                            pause_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind].* pause_ind;
-                                            pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* pause_ind;
-                                            pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
+                                    if length(traj(ftk_on_mt(i)).frames) > l_window + 4
+                                        temp_a = isempty(traj(ftk_on_mt(i)).proc_frames); %exist('traj(ftk_on_mt(i)).proc_frames');
+                                        if temp_a ~= 1 %0
+                                        %if ~isempty(traj(ftk_on_mt(i)).proc_frames) == 1 %length (traj(ftk_on_mt(i)).frames) > l_window + 4
+                                        pause_ind = ones(size(traj(ftk_on_mt(i)).proc_frames,1),1);
+                                        pause_ind = pause_ind -traj(ftk_on_mt(i)).proc_frames;
+                                            %if ~isempty(minus_cap_vel) == 1
+                                            if segment_annotate == 5
+                                                proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                                proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                                proc_seed_ind = traj(ftk_on_mt(i)).seed_ind.* traj(ftk_on_mt(i)).proc_frames;
+                                                pause_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind+traj(ftk_on_mt(i)).minus_cap_ind].* pause_ind;
+                                                pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind+traj(ftk_on_mt(i)).minus_gdp_ind].* pause_ind;
+                                                pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
+                                            else
+                                                proc_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                                proc_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* traj(ftk_on_mt(i)).proc_frames;
+                                                proc_seed_ind = traj(ftk_on_mt(i)).seed_ind.* traj(ftk_on_mt(i)).proc_frames;
+                                                pause_cap_ind = [traj(ftk_on_mt(i)).plus_cap_ind].* pause_ind;
+                                                pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* pause_ind;
+                                                pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
+                                            end
                                         end
                                     end
                                 end

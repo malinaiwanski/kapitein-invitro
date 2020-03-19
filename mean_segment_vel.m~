@@ -32,9 +32,9 @@ function [mu_segvels] = mean_segment_vel(motorqpos, position, frames, exp_time, 
             seg_mt_ind = motorq_mtind(1):1:motorq_mtind(end);
             if length(seg_mt_ind) > 1
                 seg_disp = arclength(interp_mt(seg_mt_ind,1),interp_mt(seg_mt_ind,2));
-                usegvel = seg_disp/(size(frames,1)*exp_time);
-                mu_segvels = [mu_segvels; usegvel];
-                seg_vel = diff(position)./diff(frames.*exp_time);
+                uprocvel = seg_disp/(size(frames,1)*exp_time);
+                mu_segvels = [mu_segvels; uprocvel];
+                seg_vel = diff(position)./diff(frame_tk.*exp_time);
                 rn = rn+1;
             end
         end
@@ -42,33 +42,38 @@ function [mu_segvels] = mean_segment_vel(motorqpos, position, frames, exp_time, 
         spans = [changeframes(1); diff(changeframes); length(changes)+1-changeframes(end)];
         for sn = 1:(numel(spans))
             if sn == numel(spans)
-                if seg_ind(end) == 0
-                    segment_ind = segment_starts(sn):1:size(seg_ind,1);
+                if tmsd_res(end,3) == 0
+                    segment_ind = segment_starts(sn):1:size(tmsd_res,1);
+                    pause_vel = [pause_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)];
                     pn = pn  + 1;
-                elseif seg_ind(end) == 1 
+                elseif tmsd_res(end,3) == 1 
                     seg_mt_ind = motorq_mtind(2*sn-1):1:motorq_mtind(2*sn);
                     if length(seg_mt_ind) > 1
-                        segment_ind = segment_starts(sn):1:size(seg_ind,1);
-                        seg_vel = [seg_vel, diff(position(segment_ind))./diff(frames(segment_ind)'.*exp_time)]; %changed from run_vel
-                        seg_disp = arclength(interp_mt(seg_mt_ind,1),interp_mt(seg_mt_ind,2));
-                        usegvel = seg_disp/(spans(sn)*exp_time);
-                        mu_segvels = [mu_segvels; usegvel];
+                        segment_ind = segment_starts(sn):1:size(tmsd_res,1);
+                        seg_vel = [seg_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)]; %changed from run_vel
+                        seg_disp = arclength(interp_mts{mt_tk}(seg_mt_ind,1),interp_mts{mt_tk}(seg_mt_ind,2));
+                        uprocvel = seg_disp/(spans(sn)*exp_time);
+                        mu_segvels{ftk} = [mu_segvels{ftk}; uprocvel];
                         rn = rn + 1;
                     end
                 end
             else
                 if (changes(changeframes(sn)) == 1) %was paused
                     segment_ind = segment_starts(sn):1:segment_starts(sn+1)-1;
+                    pause_vel = [pause_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)];
+                    %store pause time lengths
+                    pause_durations{ftk} = [pause_durations{ftk}; spans(sn)]; %in number of frames
                     pn = pn + 1;
                 elseif (changes(changeframes(sn)) == -1) %was processive
                     %store run time lengths
                     seg_mt_ind = motorq_mtind(2*sn-1):1:motorq_mtind(2*sn);
                     if length(seg_mt_ind) > 1
                         segment_ind = segment_starts(sn):1:segment_starts(sn+1)-1;
-                        seg_vel = [seg_vel, diff(position(segment_ind))./diff(frames(segment_ind)'.*exp_time)];  %changed from run_vel                                        
-                        seg_disp = arclength(interp_mt(seg_mt_ind,1),interp_mt(seg_mt_ind,2));
-                        usegvel = seg_disp/(spans(sn)*exp_time);
-                        mu_segvels = [mu_segvels; usegvel];
+                        seg_vel = [seg_vel, diff(position(segment_ind))./diff(frame_tk(segment_ind)'.*exp_time)];  %changed from run_vel                                        
+                        run_durations{ftk} = [run_durations{ftk}; spans(sn)]; %in number of frames
+                        seg_disp = arclength(interp_mts{mt_tk}(seg_mt_ind,1),interp_mts{mt_tk}(seg_mt_ind,2));
+                        uprocvel = seg_disp/(spans(sn)*exp_time);
+                        mu_segvels{ftk} = [mu_segvels{ftk}; uprocvel];
                         rn = rn + 1;
                     end
                 end

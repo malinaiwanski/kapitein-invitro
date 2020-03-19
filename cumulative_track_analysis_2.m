@@ -112,6 +112,8 @@ if zplot ~= 0
         figure, pausesegvel = gcf;
         figure, procsegvelviolin = gcf;
         figure, pausesegvelviolin = gcf;
+        figure, meanprocsegvel = gcf;
+        figure, meanprocsegvelviolin = gcf;
     end
 end
 %% Initialize variables
@@ -210,6 +212,12 @@ for mk = 1:size(motor,2)
             pause_cap_vel{catk} = [];
             pause_gdp_vel{catk} = [];
             pause_seed_vel{catk} = [];
+            datcat(catk).cum_mean_proc_cap_vel = [];
+            datcat(catk).cum_mean_proc_gdp_vel = [];
+            datcat(catk).cum_mean_proc_seed_vel = [];
+            mean_proc_cap_vel{catk} = [];
+            mean_proc_gdp_vel{catk} = [];
+            mean_proc_seed_vel{catk} = [];
         end
         
         cum_time_bw_landing = [];
@@ -321,7 +329,12 @@ for mk = 1:size(motor,2)
                 pause_gdp_vel{catk} = [pause_gdp_vel{catk};datmovk.cum_pause_gdp_vel, repmat(5,numel(datmovk.cum_pause_gdp_vel),1)];
                 datcat(catk).cum_pause_seed_vel = [datcat(catk).cum_pause_seed_vel; datmovk.cum_pause_seed_vel];
                 pause_seed_vel{catk} = [pause_seed_vel{catk};datmovk.cum_pause_seed_vel, repmat(6,numel(datmovk.cum_pause_seed_vel),1)];
-
+                datcat(catk).cum_mean_proc_cap_vel = [datcat(catk).cum_mean_proc_cap_vel;datmovk.cum_mean_proc_cap_vel];
+                mean_proc_cap_vel{catk} = [mean_proc_cap_vel{catk};datmovk.cum_mean_proc_cap_vel, repmat(1,numel(datmovk.cum_mean_proc_cap_vel),1)];
+                datcat(catk).cum_mean_proc_gdp_vel = [datcat(catk).cum_mean_proc_gdp_vel;datmovk.cum_mean_proc_gdp_vel];
+                mean_proc_gdp_vel{catk} = [mean_proc_gdp_vel{catk};datmovk.cum_mean_proc_gdp_vel, repmat(2,numel(datmovk.cum_mean_proc_gdp_vel),1)];
+                datcat(catk).cum_mean_proc_seed_vel = [datcat(catk).cum_mean_proc_seed_vel;datmovk.cum_mean_proc_seed_vel];
+                mean_proc_seed_vel{catk} = [mean_proc_seed_vel{catk};datmovk.cum_mean_proc_seed_vel, repmat(3,numel(datmovk.cum_mean_proc_seed_vel),1)];
             end
             
         end
@@ -730,7 +743,8 @@ for mk = 1:size(motor,2)
             subplot(size(motor,2),size(mt_type,2),catk)
             violinplot(proc_seg_vel{catk}(:,1),proc_seg_vel{catk}(:,2))
             hold on 
-            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},'Processive Instantaneous velocity'])
+            set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP cap','GDP lattice','GMP-CPP seed'});
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},' Processive Instantaneous velocity'])
             hold off
             
             %violin plot of segment paused velocities
@@ -739,9 +753,41 @@ for mk = 1:size(motor,2)
             subplot(size(motor,2),size(mt_type,2),catk)
             violinplot(pause_seg_vel{catk}(:,1),pause_seg_vel{catk}(:,2))
             hold on 
-            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},'Paused Instantaneous velocity'])
+            set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP cap','GDP lattice','GMP-CPP seed'});
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},' Paused Instantaneous velocity'])
             hold off
             
+            %processive mean vel all segments
+            [muproccapvel_n, muproccapvel_edges]=histcounts(datcat(catk).cum_mean_proc_cap_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_muproccapvel=muproccapvel_n;
+            xhist_muproccapvel=muproccapvel_edges+(vel_binwidth/2);
+            xhist_muproccapvel(end)=[];
+            [muprocgdpvel_n, muprocgdpvel_edges]=histcounts(datcat(catk).cum_mean_proc_gdp_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_muprocgdpvel=muprocgdpvel_n;
+            xhist_muprocgdpvel=muprocgdpvel_edges+(vel_binwidth/2);
+            xhist_muprocgdpvel(end)=[];
+            [muprocseedvel_n, muprocseedvel_edges]=histcounts(datcat(catk).cum_mean_proc_seed_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_muprocseedvel=muprocseedvel_n;
+            xhist_muprocseedvel=muprocseedvel_edges+(vel_binwidth/2);
+            xhist_muprocseedvel(end)=[];
+            figure(meanprocsegvel)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            bar(xhist_muproccapvel,nhist_muproccapvel,'m','FaceAlpha',0.6)
+            hold on 
+            bar(xhist_muprocgdpvel,nhist_muprocgdpvel,'g','FaceAlpha',0.6)
+            bar(xhist_muprocseedvel,nhist_muprocseedvel,'k','FaceAlpha',0.6)     
+            xlabel('Mean velocity (nm/s)'), ylabel('Fraction'), title([motor{mk},' ', mt_type{mtk},' Processive mean velocity by segment'])
+            hold off
+            
+            %violin plot of segment processive mean velocities
+            mean_proc_seg_vel{catk} = [mean_proc_cap_vel{catk}; mean_proc_gdp_vel{catk}; mean_proc_seed_vel{catk}];
+            figure(meanprocsegvelviolin)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            violinplot(mean_proc_seg_vel{catk}(:,1),mean_proc_seg_vel{catk}(:,2))
+            hold on 
+            set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP cap','GDP lattice','GMP-CPP seed'});
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},' Processive Instantaneous velocity'])
+            hold off
         end
         
         % landing rate on MT

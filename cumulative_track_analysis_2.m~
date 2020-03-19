@@ -112,6 +112,8 @@ if zplot ~= 0
         figure, pausesegvel = gcf;
         figure, procsegvelviolin = gcf;
         figure, pausesegvelviolin = gcf;
+        figure, meanprocsegvel = gcf;
+        figure, meanprocsegvelviolin = gcf;
     end
 end
 %% Initialize variables
@@ -210,6 +212,7 @@ for mk = 1:size(motor,2)
             pause_cap_vel{catk} = [];
             pause_gdp_vel{catk} = [];
             pause_seed_vel{catk} = [];
+            datcat(catk)
         end
         
         cum_time_bw_landing = [];
@@ -725,20 +728,21 @@ for mk = 1:size(motor,2)
             hold off
             
             %violin plot of segment processive velocities
-            proc_seg_vel{catk} = [proc
+            proc_seg_vel{catk} = [proc_cap_vel{catk}; proc_gdp_vel{catk}; proc_seed_vel{catk}];
             figure(procsegvelviolin)
             subplot(size(motor,2),size(mt_type,2),catk)
             violinplot(proc_seg_vel{catk}(:,1),proc_seg_vel{catk}(:,2))
             hold on 
-            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title('Processive Instantaneous velocity')
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},'Processive Instantaneous velocity'])
             hold off
             
             %violin plot of segment paused velocities
+            pause_seg_vel{catk} = [pause_cap_vel{catk}; pause_gdp_vel{catk}; pause_seed_vel{catk}];
             figure(pausesegvelviolin)
             subplot(size(motor,2),size(mt_type,2),catk)
             violinplot(pause_seg_vel{catk}(:,1),pause_seg_vel{catk}(:,2))
             hold on 
-            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title('Processive Instantaneous velocity')
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},'Paused Instantaneous velocity'])
             hold off
             
         end

@@ -786,7 +786,7 @@ for mk = 1:size(motor,2)
             violinplot(mean_proc_seg_vel{catk}(:,1),mean_proc_seg_vel{catk}(:,2))
             hold on 
             set(gca,'XTick',[1,2,3], 'xticklabel',{'GMP-CPP cap','GDP lattice','GMP-CPP seed'});
-            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},' Processive Instantaneous velocity'])
+            xlabel('Segment type'), ylabel('Mean velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},' Processive mean velocity'])
             hold off
         end
         

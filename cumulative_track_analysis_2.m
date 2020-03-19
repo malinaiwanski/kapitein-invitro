@@ -14,17 +14,17 @@
 % Ensure that tMSD_2D.m and MSD_2D.m are in the same folder as this code.
 
 clear all, close all
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
-%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
-%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 1;
-zcap = 0; %set to 1 if using capped MTs
+zcap = 1; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -48,8 +48,8 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %{'cap','taxol_cap'}; %
-date = {'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %{'2019-12-09','2019-12-13'}; %
+mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
+date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -102,13 +102,23 @@ if zplot ~= 0
         figure, trackstartsegmenttype = gcf;
         figure, landratebyseg = gcf;
         figure, landratebyseg2 = gcf;
+%         figure, proccapvel = gcf;
+%         figure, procgdpvel = gcf;     
+%         figure, procseedvel = gcf;
+%         figure, pausecapvel = gcf;
+%         figure, pausegdpvel = gcf;
+%         figure, pauseseedvel = gcf;
+        figure, procsegvel = gcf;
+        figure, pausesegvel = gcf;
+        figure, procsegvelviolin = gcf;
+        figure, pausesegvelviolin = gcf;
     end
 end
 %% Initialize variables
 
 %% Load data
-dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-%dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+%dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
 filename_start = 'post_particle_tracking';
 
 num_cat = size(motor,2)*size(mt_type,2);
@@ -188,6 +198,18 @@ for mk = 1:size(motor,2)
             datcat(catk).segment_indices = {};
             datcat(catk).cum_land_rate_by_seg = cell(5,1);
             landrateseg{catk} = [];
+            datcat(catk).cum_proc_cap_vel = [];
+            datcat(catk).cum_proc_gdp_vel = [];
+            datcat(catk).cum_proc_seed_vel = [];
+            datcat(catk).cum_pause_cap_vel = [];
+            datcat(catk).cum_pause_gdp_vel = [];
+            datcat(catk).cum_pause_seed_vel = [];
+            proc_cap_vel{catk} = [];
+            proc_gdp_vel{catk} = [];
+            proc_seed_vel{catk} = [];
+            pause_cap_vel{catk} = [];
+            pause_gdp_vel{catk} = [];
+            pause_seed_vel{catk} = [];
         end
         
         cum_time_bw_landing = [];
@@ -242,6 +264,8 @@ for mk = 1:size(motor,2)
                 datcat(catk).inst_vel{movk} = datmovk.traj.inst_vel;
                 datcat(catk).proc_vel{movk} = datmovk.traj.proc_vel;
                 % datcat(catk).loc_alpha{movk} = datmovk.traj.loc_alpha;
+%                 if zcap == 1
+%                 end
             end
             
             %datcat(catk).pos_on_mt{movk} = datmovk.traj.position_on_mt;
@@ -285,13 +309,26 @@ for mk = 1:size(motor,2)
                 datcat(catk).cum_minus_cap_vel = [datcat(catk).cum_minus_cap_vel; datmovk.cum_minus_cap_vel'];
                 datcat(catk).cum_minus_gdp_vel = [datcat(catk).cum_minus_gdp_vel; datmovk.cum_minus_gdp_vel'];
                 datcat(catk).cum_track_start_segment = [datcat(catk).cum_track_start_segment; datmovk.cum_track_start_segment'];
+                datcat(catk).cum_proc_cap_vel = [datcat(catk).cum_proc_cap_vel; datmovk.cum_proc_cap_vel];
+                proc_cap_vel{catk} = [proc_cap_vel{catk};datmovk.cum_proc_cap_vel, repmat(1,numel(datmovk.cum_proc_cap_vel),1)];
+                datcat(catk).cum_proc_gdp_vel = [datcat(catk).cum_proc_gdp_vel; datmovk.cum_proc_gdp_vel];
+                proc_gdp_vel{catk} = [proc_gdp_vel{catk};datmovk.cum_proc_gdp_vel, repmat(2,numel(datmovk.cum_proc_gdp_vel),1)];
+                datcat(catk).cum_proc_seed_vel = [datcat(catk).cum_proc_seed_vel; datmovk.cum_proc_seed_vel];
+                proc_seed_vel{catk} = [proc_seed_vel{catk};datmovk.cum_proc_seed_vel, repmat(3,numel(datmovk.cum_proc_seed_vel),1)];
+                datcat(catk).cum_pause_cap_vel = [datcat(catk).cum_pause_cap_vel; datmovk.cum_pause_cap_vel];
+                pause_cap_vel{catk} = [pause_cap_vel{catk};datmovk.cum_pause_cap_vel, repmat(4,numel(datmovk.cum_pause_cap_vel),1)];
+                datcat(catk).cum_pause_gdp_vel = [datcat(catk).cum_pause_gdp_vel; datmovk.cum_pause_gdp_vel];
+                pause_gdp_vel{catk} = [pause_gdp_vel{catk};datmovk.cum_pause_gdp_vel, repmat(5,numel(datmovk.cum_pause_gdp_vel),1)];
+                datcat(catk).cum_pause_seed_vel = [datcat(catk).cum_pause_seed_vel; datmovk.cum_pause_seed_vel];
+                pause_seed_vel{catk} = [pause_seed_vel{catk};datmovk.cum_pause_seed_vel, repmat(6,numel(datmovk.cum_pause_seed_vel),1)];
+
             end
             
         end
         
         if zsave == 1
-            save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-            %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+            %save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+            save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
             save_filename = ['post_particle_tracking','_',motor{mk},'_',mt_type{mtk},'_'];
             fname = fullfile(save_dirname,save_filename);
             writematrix(datcat(catk).cum_proc_vel,[fname,'procvel.csv'])
@@ -630,6 +667,81 @@ for mk = 1:size(motor,2)
             hold on 
             xlabel('Segment'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
             hold off
+            
+%             %processive inst vel on GDP
+%             [procgdpvel_n, procgdpvel_edges]=histcounts(datcat(catk).cum_proc_gdp_vel, 'BinWidth', vel_binwidth, 'Normalization', 'pdf');
+%             nhist_procgdpvel=procgdpvel_n;
+%             xhist_procgdpvel=procgdpvel_edges+(vel_binwidth/2);
+%             xhist_procgdpvel(end)=[]; 
+%             figure(procgdpvel)
+%             subplot(size(motor,2),size(mt_type,2),catk)
+%             bar(xhist_procgdpvel,nhist_procgdpvel)
+%             hold on 
+%             xlabel('Instantaneous processive velocity(nm/s)'), ylabel('Probability density'), title([motor{mk},' ', mt_type{mtk},' Instantaneous processive velocity GDP'])
+%             hold off
+            
+            %processive inst vel all segments
+            [proccapvel_n, proccapvel_edges]=histcounts(datcat(catk).cum_proc_cap_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_proccapvel=proccapvel_n;
+            xhist_proccapvel=proccapvel_edges+(vel_binwidth/2);
+            xhist_proccapvel(end)=[];
+            [procgdpvel_n, procgdpvel_edges]=histcounts(datcat(catk).cum_proc_gdp_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_procgdpvel=procgdpvel_n;
+            xhist_procgdpvel=procgdpvel_edges+(vel_binwidth/2);
+            xhist_procgdpvel(end)=[];
+            [procseedvel_n, procseedvel_edges]=histcounts(datcat(catk).cum_proc_seed_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_procseedvel=procseedvel_n;
+            xhist_procseedvel=procseedvel_edges+(vel_binwidth/2);
+            xhist_procseedvel(end)=[];
+            figure(procsegvel)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            bar(xhist_proccapvel,nhist_proccapvel,'m','FaceAlpha',0.6)
+            hold on 
+            bar(xhist_procgdpvel,nhist_procgdpvel,'g','FaceAlpha',0.6)
+            bar(xhist_procseedvel,nhist_procseedvel,'k','FaceAlpha',0.6)     
+            xlabel('Instantaneous velocity (nm/s)'), ylabel('Fraction'), title([motor{mk},' ', mt_type{mtk},' Processive instantaneous velocity by segment'])
+            hold off
+            
+            %pause inst vel all segments
+            [pausecapvel_n, pausecapvel_edges]=histcounts(datcat(catk).cum_pause_cap_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_pausecapvel=pausecapvel_n;
+            xhist_pausecapvel=pausecapvel_edges+(vel_binwidth/2);
+            xhist_pausecapvel(end)=[];
+            [pausegdpvel_n, pausegdpvel_edges]=histcounts(datcat(catk).cum_pause_gdp_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_pausegdpvel=pausegdpvel_n;
+            xhist_pausegdpvel=pausegdpvel_edges+(vel_binwidth/2);
+            xhist_pausegdpvel(end)=[];
+            [pauseseedvel_n, pauseseedvel_edges]=histcounts(datcat(catk).cum_pause_seed_vel, 'BinWidth', vel_binwidth, 'Normalization', 'probability');
+            nhist_pauseseedvel=pauseseedvel_n;
+            xhist_pauseseedvel=pauseseedvel_edges+(vel_binwidth/2);
+            xhist_pauseseedvel(end)=[];
+            figure(pausesegvel)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            bar(xhist_pausecapvel,nhist_pausecapvel,'m','FaceAlpha',0.6)
+            hold on 
+            bar(xhist_pausegdpvel,nhist_pausegdpvel,'g','FaceAlpha',0.6)
+            bar(xhist_pauseseedvel,nhist_pauseseedvel,'k','FaceAlpha',0.6)     
+            xlabel('Instantaneous velocity (nm/s)'), ylabel('Fraction'), title([motor{mk},' ', mt_type{mtk},' Paused instantaneous velocity by segment'])
+            hold off
+            
+            %violin plot of segment processive velocities
+            proc_seg_vel{catk} = [proc_cap_vel{catk}; proc_gdp_vel{catk}; proc_seed_vel{catk}];
+            figure(procsegvelviolin)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            violinplot(proc_seg_vel{catk}(:,1),proc_seg_vel{catk}(:,2))
+            hold on 
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},'Processive Instantaneous velocity'])
+            hold off
+            
+            %violin plot of segment paused velocities
+            pause_seg_vel{catk} = [pause_cap_vel{catk}; pause_gdp_vel{catk}; pause_seed_vel{catk}];
+            figure(pausesegvelviolin)
+            subplot(size(motor,2),size(mt_type,2),catk)
+            violinplot(pause_seg_vel{catk}(:,1),pause_seg_vel{catk}(:,2))
+            hold on 
+            xlabel('Segment type'), ylabel('Instantaneous velocity)(nm/s)'), title([motor{mk},' ', mt_type{mtk},'Paused Instantaneous velocity'])
+            hold off
+            
         end
         
         % landing rate on MT

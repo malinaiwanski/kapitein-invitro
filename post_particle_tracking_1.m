@@ -24,11 +24,11 @@
 % interparc from https://nl.mathworks.com/matlabcentral/fileexchange/34874-interparc
 
 clear all, close all
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
-%addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
-addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
-%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
-%addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB\GitHub Codes\in-vitro-codes\kapitein-invitro') %windows
+addpath('/Users/malinaiwanski/Documents/MATLAB/GitHub/kapitein-invitro') %mac
+%addpath('C:\Users\6182658\OneDrive - Universiteit Utrecht\MATLAB') %windows
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/MATLAB') %mac
+addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %mac
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
@@ -49,8 +49,8 @@ for master_date_ind = 1:size(dates,2)
             %filenum = %5;
 
             %% Load data
-            dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
-            %dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
+            %dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data','\',date,'\',motor,'\',mt_type,'\'); %windows
+            dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data','/',date,'/',motor,'/',mt_type,'/'); %mac
 
 
             motor_files = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
@@ -298,6 +298,12 @@ for master_date_ind = 1:size(dates,2)
                     cum_minus_gdp_vel = [];
                     cum_track_start_segment = [];
                     cum_land_rate_by_seg = cell(5,1); %double.empty(5,0); %[];
+                    cum_proc_cap_vel = [];
+                    cum_proc_gdp_vel = [];
+                    cum_proc_seed_vel = [];
+                    cum_pause_cap_vel = [];
+                    cum_pause_gdp_vel = [];
+                    cum_pause_seed_vel = [];
                 end
 
                 %% Analyze
@@ -972,7 +978,7 @@ for master_date_ind = 1:size(dates,2)
                                     traj(ftk_on_mt(i)).plus_gdp_ind = zeros(tot_ind,1);
                                     traj(ftk_on_mt(i)).seed_ind = zeros(tot_ind,1);
                                     
-                                    if segment_annotate == 5
+                                    %if segment_annotate == 5
                                     %if ~isempty(minus_gdp_vel)
                                         traj(ftk_on_mt(i)).minus_gdp_ind = zeros(tot_ind,1);
 %                                     else
@@ -983,7 +989,7 @@ for master_date_ind = 1:size(dates,2)
 %                                     else
 %                                         traj(ftk_on_mt(i)).minus_cap_ind = [];
                                     %end
-                                    end
+                                    %end
 
                                     traj(ftk_on_mt(i)).plus_cap_ind(plus_cap_ind) = 1;
                                     traj(ftk_on_mt(i)).plus_gdp_ind(plus_gdp_ind) = 1;
@@ -1020,11 +1026,55 @@ for master_date_ind = 1:size(dates,2)
                                                 pause_gdp_ind = [traj(ftk_on_mt(i)).plus_gdp_ind].* pause_ind;
                                                 pause_seed_ind = traj(ftk_on_mt(i)).seed_ind.* pause_ind;
                                             end
+                                                traj(ftk_on_mt(i)).proc_cap_ind = proc_cap_ind;
+                                                traj(ftk_on_mt(i)).proc_gdp_ind = proc_gdp_ind;
+                                                traj(ftk_on_mt(i)).proc_seed_ind = proc_seed_ind;
+                                                traj(ftk_on_mt(i)).pause_cap_ind = pause_cap_ind;
+                                                traj(ftk_on_mt(i)).pause_gdp_ind = pause_gdp_ind;
+                                                traj(ftk_on_mt(i)).pause_seed_ind = pause_seed_ind;
+                                                
+                                                % look at processive, paused velocities in different segments
+                                                % identify first frames of discontinuous segments
+                                                % (if motor switches from one condition and back to it there will be >1 changept, with the index of the first point of the new segment identified in ipt
+%                                                 ipt = cell(6,1);
+%                                                 [ipt{1},~] =findchangepts(proc_cap_ind,'MinThreshold',0.5);
+%                                                 [ipt{2},~] =findchangepts(proc_gdp_ind,'MinThreshold',0.5);
+%                                                 [ipt{3},~] =findchangepts(proc_seed_ind,'MinThreshold',0.5);
+%                                                 [ipt{4},~] =findchangepts(pause_cap_ind,'MinThreshold',0.5);
+%                                                 [ipt{5},~] =findchangepts(pause_gdp_ind,'MinThreshold',0.5);
+%                                                 [ipt{6},~] =findchangepts(pause_seed_ind,'MinThreshold',0.5);
+                                                
+                                                seg_type = zeros(tot_ind,1);
+                                                seg_type(proc_cap_ind==1) = 1;
+                                                seg_type(proc_gdp_ind==1) = 2;
+                                                seg_type(proc_seed_ind==1) = 3;
+                                                seg_type(pause_cap_ind==1) = 4;
+                                                seg_type(pause_gdp_ind==1) = 5;
+                                                seg_type(pause_seed_ind==1) = 6;
+                                                
+                                                seg_type_vel = cell(6,1);
+                                                for lmn = 1:6
+                                                    seg_type_vel{lmn,1} = diff(traj(ftk_on_mt(i)).position(seg_type==lmn))'./(diff(traj(ftk_on_mt(i)).frames(seg_type==lmn)).*exp_time);
+                                                end
+                                                
+                                                cum_proc_cap_vel = [cum_proc_cap_vel;seg_type_vel{1,1}];
+                                                cum_proc_gdp_vel = [cum_proc_gdp_vel;seg_type_vel{2,1}];
+                                                cum_proc_seed_vel = [cum_proc_seed_vel;seg_type_vel{3,1}];
+                                                cum_pause_cap_vel = [cum_pause_cap_vel;seg_type_vel{4,1}];
+                                                cum_pause_gdp_vel = [cum_pause_gdp_vel;seg_type_vel{5,1}];
+                                                cum_pause_seed_vel = [cum_pause_seed_vel;seg_type_vel{6,1}];
+                                                
+                                                %CALL FUNCTION TO FIND MEAN
+                                                %SEG VELS HERE
+                                                [mu_proccapvels] = mean_segment_vel(proc_cap_ind);
                                         end
                                     end
                                 end
                                 
-                                                                    
+                                
+                                
+                                
+                                
                                 %analyze landing distance to other motors based on segments
                                 % landing_distance{mttk}{ftk_on_mt(j),other_traj_ind(jk)} = [framek, dist_bw];
                                 %segment_indices{mttk}{ftk_on_mt(i),k} with
@@ -1105,11 +1155,11 @@ for master_date_ind = 1:size(dates,2)
 
                 %% Save data
                 if zsave ~= 0
-                    save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
-                    %save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
+                    %save_dirname =strcat('C:\Users\6182658\OneDrive - Universiteit Utrecht\in_vitro_data\results'); %windows
+                    save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum),'.mat'];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg','cum_proc_cap_vel','cum_proc_gdp_vel','cum_proc_seed_vel','cum_pause_cap_vel','cum_pause_gdp_vel','cum_pause_seed_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])

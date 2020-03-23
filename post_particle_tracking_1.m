@@ -1,7 +1,7 @@
 
 %% UU - Kapitein Lab
 % Analyze in vitro single molecule motility assays
-% MK Iwanski and C Chen 2019-11-05
+% MK Iwanski 2019-11-05
 % Projection along MT taken from AG Hendricks Lab (McGill)
 
 %%
@@ -110,27 +110,39 @@ for master_date_ind = 1:size(dates,2)
                     temp_mt_dat = textscan(fid,'%s %*s %s %*s %s %s %*s %s %*s %*s %*s %*s','HeaderLines',1,'Delimiter',',','EndOfLine','\n');
                     fclose(fid);
                     temp_mt_dat = reshape([temp_mt_dat{:}],size(temp_mt_dat{1,1},1),size(temp_mt_dat,2));
-                    response_intens = zeros(size(temp_mt_dat,1),1);
+                    response_intens{1,1} = strings(size(temp_mt_dat,1),1);
                     for i = 1: size(temp_mt_dat,1)
-                        response_intens(i) = str2double(temp_mt_dat{i,5});
+                        response_intens{1,1}(i) = convertCharsToStrings(temp_mt_dat{i,5}); %str2double(temp_mt_dat{i,5});
                     end
                     temp_mt_dat(:,5) = [];
                     temp_mt_dat_old = temp_mt_dat;
                     temp_mt_dat(:,1) = temp_mt_dat_old(:,2);
                     temp_mt_dat(:,2) = temp_mt_dat_old(:,1);
-                    temp_mt_data = zeros(size(temp_mt_dat,1),size(temp_mt_dat,2));
-                    for i = 1:size(temp_mt_data,1)
-                        for j = 1:size(temp_mt_data,2)
-                            temp_mt_data(i,j) = str2double(temp_mt_dat{i,j});
+                    % temp_mt_data = zeros(size(temp_mt_dat,1),size(temp_mt_dat,2));
+                    % for i = 1:size(temp_mt_data,1)
+                    %     for j = 1:size(temp_mt_data,2)
+                    %         temp_mt_data(i,j) = str2double(temp_mt_dat{i,j});
+                    %     end
+                    % end
+                    % temp_mt_data = num2cell(temp_mt_data);
+                    temp_mt_data = cell(1,4);
+                    for i = 1:size(temp_mt_dat,1)
+                        for j = 1:size(temp_mt_dat,2) %[1,3,4]
+                            temp_mt_data{1,j} = [temp_mt_data{1,j};convertCharsToStrings(temp_mt_dat{i,j})];%str2double(temp_mt_dat{i,j})];
                         end
                     end
                 end
-                [mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap);
+                
+                if zcurve == 1 && zcap == 1
+                    [mts, interp_mts, response_mts, skip_mts] = filter_mts([temp_mt_data,response_intens], analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap, zcurve);
+                else
+                    [mts, interp_mts, ~, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap, zcurve);
+                end
                 all_interp_mts = [];
                 for j = 1: size(interp_mts,1)
                     all_interp_mts = [all_interp_mts;interp_mts{j}];
                 end
-                filt_mt_ind = find(skip_mts);
+                filt_mt_ind = find(skip_mts); % This will be changed later for capped MTs if any are found that do not have 3 or 5 segments
                 num_mts = size(mts,1);
                 
                 % For capped MTs, read in segment data
@@ -177,9 +189,12 @@ for master_date_ind = 1:size(dates,2)
                     for i = cap_id
                         if size(segment_boundaries{i},1) ~=2 && size(segment_boundaries{i},1) ~= 4
                             disp(['MT number ', num2str(cap_id), ' does not have 3 or 5 segments. Retrace segment boundaries']);
+                        skips_mts(i) = 1; % also filter out MTs if they do not have an appropriate number of segments
                         end
                     end
-
+                    
+                    filt_mt_ind = find(skip_mts);
+                    
                     num_caps = length(unique(caps_id));
                     if num_caps ~= num_mts
                         disp('ERROR: Data mismatch - retrace MTs and/or MT segment boundaries')
@@ -195,6 +210,15 @@ for master_date_ind = 1:size(dates,2)
                             closest_mtpoint = interp_mts{j}(closest_mtpoint_ind,:);
                             boundaries_on_mt{j} = [boundaries_on_mt{j}; closest_mtpoint]; 
                         end
+                    end
+                end
+                
+                %identify MT orientation and which indices in MT correspond to the MT seed
+                if zcurve == 1 && zcap == 1
+                    flip_this_mt = {};
+                    mt_seed = {};
+                    for j = 1:num_mts
+                        [flip_this_mt{j}, mt_seed{j}] = find_mt_seed(interp_mts{j},boundaries_on_mt{j},response_mts{j});
                     end
                 end
 

@@ -1,7 +1,7 @@
 
 %% UU - Kapitein Lab
 % Analyze in vitro single molecule motility assays
-% MK Iwanski and C Chen 2019-11-05
+% MK Iwanski 2019-11-05
 % Projection along MT taken from AG Hendricks Lab (McGill)
 
 %%
@@ -110,22 +110,34 @@ for master_date_ind = 1:size(dates,2)
                     temp_mt_dat = textscan(fid,'%s %*s %s %*s %s %s %*s %s %*s %*s %*s %*s','HeaderLines',1,'Delimiter',',','EndOfLine','\n');
                     fclose(fid);
                     temp_mt_dat = reshape([temp_mt_dat{:}],size(temp_mt_dat{1,1},1),size(temp_mt_dat,2));
-                    response_intens = zeros(size(temp_mt_dat,1),1);
+                    response_intens{1,1} = strings(size(temp_mt_dat,1),1);
                     for i = 1: size(temp_mt_dat,1)
-                        response_intens(i) = str2double(temp_mt_dat{i,5});
+                        response_intens{1,1}(i) = convertCharsToStrings(temp_mt_dat{i,5}); %str2double(temp_mt_dat{i,5});
                     end
                     temp_mt_dat(:,5) = [];
                     temp_mt_dat_old = temp_mt_dat;
                     temp_mt_dat(:,1) = temp_mt_dat_old(:,2);
                     temp_mt_dat(:,2) = temp_mt_dat_old(:,1);
-                    temp_mt_data = zeros(size(temp_mt_dat,1),size(temp_mt_dat,2));
-                    for i = 1:size(temp_mt_data,1)
-                        for j = 1:size(temp_mt_data,2)
-                            temp_mt_data(i,j) = str2double(temp_mt_dat{i,j});
+                    % temp_mt_data = zeros(size(temp_mt_dat,1),size(temp_mt_dat,2));
+                    % for i = 1:size(temp_mt_data,1)
+                    %     for j = 1:size(temp_mt_data,2)
+                    %         temp_mt_data(i,j) = str2double(temp_mt_dat{i,j});
+                    %     end
+                    % end
+                    % temp_mt_data = num2cell(temp_mt_data);
+                    temp_mt_data = cell(1,4);
+                    for i = 1:size(temp_mt_dat,1)
+                        for j = 1:size(temp_mt_dat,2) %[1,3,4]
+                            temp_mt_data{1,j} = [temp_mt_data{1,j};convertCharsToStrings(temp_mt_dat{i,j})];%str2double(temp_mt_dat{i,j})];
                         end
                     end
                 end
-                [mts, interp_mts, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap);
+                
+                if zcurve == 1 && zcap == 1
+                    [mts, interp_mts, response_mts, skip_mts] = filter_mts([temp_mt_data,response_intens], analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap, zcurve);
+                else
+                    [mts, interp_mts, ~, skip_mts] = filter_mts(temp_mt_data, analyze_mt_num, filt_cross_mt, mt_cross_dist, filt_short_mt, mt_min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap, zcurve);
+                end
                 all_interp_mts = [];
                 for j = 1: size(interp_mts,1)
                     all_interp_mts = [all_interp_mts;interp_mts{j}];
@@ -195,6 +207,14 @@ for master_date_ind = 1:size(dates,2)
                             closest_mtpoint = interp_mts{j}(closest_mtpoint_ind,:);
                             boundaries_on_mt{j} = [boundaries_on_mt{j}; closest_mtpoint]; 
                         end
+                    end
+                end
+                
+                %identify MT orientation and which indices in MT correspond to the MT seed
+                if zcurve == 1 && zcap == 1
+                    flip_this_mt 
+                    for j = 1:num_mts
+                        [flip_this_mt{j}, mt_seed{j}] = find_mt_seed(interp_mts{j},boundaries_on_mt{j},response_mts{j});
                     end
                 end
 
@@ -304,6 +324,9 @@ for master_date_ind = 1:size(dates,2)
                     cum_pause_cap_vel = [];
                     cum_pause_gdp_vel = [];
                     cum_pause_seed_vel = [];
+                    cum_mean_proc_cap_vel = [];
+                    cum_mean_proc_gdp_vel = [];
+                    cum_mean_proc_seed_vel = [];
                 end
 
                 %% Analyze
@@ -1159,7 +1182,7 @@ for master_date_ind = 1:size(dates,2)
                     save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum),'.mat'];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg','cum_proc_cap_vel','cum_proc_gdp_vel','cum_proc_seed_vel','cum_pause_cap_vel','cum_pause_gdp_vel','cum_pause_seed_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg','cum_proc_cap_vel','cum_proc_gdp_vel','cum_proc_seed_vel','cum_pause_cap_vel','cum_pause_gdp_vel','cum_pause_seed_vel','cum_mean_proc_cap_vel','cum_mean_proc_gdp_vel','cum_mean_proc_seed_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])

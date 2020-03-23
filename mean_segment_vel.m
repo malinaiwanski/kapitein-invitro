@@ -1,8 +1,16 @@
+%% UU - Kapitein Lab
+% Analyze in vitro single molecule motility assays
+% MK Iwanski 2020-03-20
+%% This function identifies the mean velocity of different types of motility and/or on different MT lattices
 % input: motorqpos (position of motor ON MT), position (x,y localizations
 % of motor), frames (frames of motor localizations in movie), interp_mt
 % (interpolated x,y MT coordinates), seg_ind (vector identifying in which
 % frames motor is in a condition (e.g. cap and processive) with a 1,
 % otherwise a 0)
+% output: vector containing mean velocity of each segment (of type
+% determined by the input vector seg_ind (e.g. if seg_ind specifies
+% processive frames on the GDP lattice, output mean velocities will be for
+% processive segments of the trajectory on the GDP lattice)
 
 function [mu_segvels] = mean_segment_vel(motorqpos, position, frames, exp_time, interp_mt, seg_ind)
     

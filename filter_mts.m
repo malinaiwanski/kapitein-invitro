@@ -1,11 +1,11 @@
 %% UU - Kapitein Lab
 % Analyze in vitro single molecule motility assays
-% MKI and CC 2019-11-05
+% MK Iwanski 2019-11-05
 %% This function takes in a cell of all MTs in a movie, formats, and filters them
 % input: Cell with columns %1=id %2=roi_name %3=x %4=y, filtering options, pixel size
 % output: Filtered cell where each mt{i} is an array with columns %1=x %2=y corresponding to one mt that meets the criteria (e.g. does not cross another mt, etc.)
 
-function [mts, interp_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, filt_short, min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap)
+function [mts, interp_mts, response_mts, skip_mts] = filter_mts(mt_data, analyze_mt_num, filt_cross, cross_dist, filt_short, min_length, pixel_size, num_pix_x, num_pix_y, zplot, zcap, zcurve)
 
 % initialize figure if plotting
 if zplot ~= 0
@@ -20,8 +20,17 @@ if analyze_mt_num ~= -1
     filt_cross = 0; %if analyzing only one MT, do not filter out e.g. crossing MTs
     
     %format MT xy positions
-    mts_id = str2double(mt_data{1,1}(:))+1;
-    mt_id = find(mts_id(:,1)==analyze_mt_num+1,1); %analyze_mt_num specified as starting from 0, but here IDs start at 1
+    mts_id = str2double(mt_data{1,1}(:));
+    if zcurve == 0
+        mts_id = mts_id +1;
+        mt_id = find(mts_id(:,1)==analyze_mt_num+1,1); %analyze_mt_num specified as starting from 0, but here IDs start at 1
+    else
+        mt_id = find(mts_id(:,1)==analyze_mt_num,1); %analyze_mt_num specified as starting from 0, but here IDs start at 1
+        if zcap == 1
+            mt_response = str2double(mt_data{1,5}(:));
+        end
+    end
+    
     mts_x = str2double(mt_data{1,3}(:));
     mts_y = str2double(mt_data{1,4}(:));
     if zcap ==1
@@ -32,7 +41,16 @@ if analyze_mt_num ~= -1
     num_mts = 1;
 else
     %format MT xy positions
-    mts_id = str2double(mt_data{1,1}(:))+1;
+    mts_id = str2double(mt_data{1,1}(:));
+    if zcurve == 0
+        mts_id = mts_id +1;
+        mt_id = find(mts_id(:,1)==analyze_mt_num+1,1); %analyze_mt_num specified as starting from 0, but here IDs start at 1
+    else
+        mt_id = find(mts_id(:,1)==analyze_mt_num,1); %analyze_mt_num specified as starting from 0, but here IDs start at 1
+        if zcap ==1
+            mt_response = str2double(mt_data{1,5}(:));
+        end
+    end
     mts_x = str2double(mt_data{1,3}(:));
     mts_y = str2double(mt_data{1,4}(:));
     if zcap ==1
@@ -46,6 +64,7 @@ cmap=colormap(colorcube(num_mts));
 
 % initialize variables
 temp_mts = cell(num_mts,1);
+response_mts = cell(num_mts,1);
 interp_mts = cell(num_mts,1);
 interp_mtcoords = [];
 mt_near_diff_mt = cell(num_mts,1);
@@ -55,12 +74,20 @@ for i = 1:num_mts
     cross_mts = zeros(1,num_mts);
     mt_id = find(mts_id(:,1)==i,1);
     mt_l = length(find(mts_id(:,1)==i)); %number of points making up MT, NOT physical length
-    temp_mts{i} = [mts_x([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size, mts_y([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size]; %MT position x,y in nm
-    %add one pixel dimension because ImageJ starts at 0, MATLAB at 1; add 0.5 because positions are plotted at the bottom,left of a pixel (??)
+    if zcurve == 0
+        temp_mts{i} = [mts_x([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size, mts_y([mt_id:1:mt_id+mt_l-1],1).*pixel_size+1.5*pixel_size]; %MT position x,y in nm
+        %add one pixel dimension because ImageJ starts at 0, MATLAB at 1; add 0.5 because positions are plotted at the bottom,left of a pixel (??)
+    else
+        temp_mts{i} = [mts_x([mt_id:1:mt_id+mt_l-1],1).*pixel_size, mts_y([mt_id:1:mt_id+mt_l-1],1).*pixel_size]; %MT position x,y in nm
+    end
     if temp_mts{i}(1,1) > temp_mts{i}(end,1)
         temp_mts{i} = flipud(temp_mts{i});
     end
     %temp_mts{i} = sortrows(temp_mts{i}); %put x-values in ascending order for later interpolation
+    
+    if zcap == 1 && zcurve == 1
+        response_mts{i} = mt_response([mt_id:1:mt_id+mt_l-1],1);
+    end
     
     %FILTER: skip MTs with single unique x-value (vertical MTs)
     [~,uni_ind] = unique(temp_mts{i}(:,1),'stable'); %find repeated x-values in MT
@@ -88,6 +115,9 @@ if filt_short ~= 0
         %mt_length = sum(sqrt(temp_mts{i}(:,1).^2 + temp_mts{i}(:,2).^2));
         mt_length = arclength(temp_mts{i}(:,1),temp_mts{i}(:,2));
         if mt_length < min_length
+            cross_mts(i) = 1;
+        end
+        if zcap == 1 && mt_length < 3*min_length
             cross_mts(i) = 1;
         end
     end

@@ -8,7 +8,11 @@
 function [flip_mt, mt_seed] = find_mt_seed(mt_coords,seg_boundaries,response)
     tot_mt_length = arclength(mt_coords(:,1),mt_coords(:,2));
     
-    findchangepts(response,'MinThreshold',200)
+    %plot([1:1:length(response)],response)
+    
+    findchangepts(response,'MinThreshold',0.3)
+    
+    
     
     %order segment boundaries based on distance from plus-end of MT
     if ~isempty(seg_boundaries)

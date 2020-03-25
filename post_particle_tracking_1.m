@@ -32,9 +32,9 @@ addpath('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data') %m
 set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
-motors = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
-dates = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
+motors = {'kif1a','kif5b'}; %
+mt_types = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
+dates =  {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -57,13 +57,13 @@ for master_date_ind = 1:size(dates,2)
             num_files = size(motor_files,1);
 
             for filenum = 1:num_files
-                clearvars -except motors mt_types dates master_date_ind master_motor_ind master_mt_ind motor mt_type date dirname filenum
+                clearvars -except motors mt_types dates master_date_ind master_motor_ind master_mt_ind motor mt_type date dirname filenum num_files
                 close all
                 
                 %% Options (make 0 to NOT perform related action, 1 to perform)
                 zplot = 0; %set to 1 to visualize trajectories, kymographs, etc.
                 zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
-                zcap = 1; %set to 1 if using capped MTs
+                zcap = 0; %set to 1 if using capped MTs
                 zcurve = 0; %set to 1 if Curve Tracing was used to trace the MTs in Fiji
 
                 % Filtering
@@ -221,7 +221,20 @@ for master_date_ind = 1:size(dates,2)
                         [flip_this_mt{j}, mt_seed{j}] = find_mt_seed(interp_mts{j},boundaries_on_mt{j},response_mts{j});
                     end
                 end
-
+                
+                % Read in motor concentration
+                conc_file = dir(fullfile(dirname,'concentration*.csv')); %finds appropriate file
+                fid=fopen(fullfile(dirname,conc_file(1).name)); %opens the specified file in the list and imports data
+                temp_conc_data = textscan(fid,'%s %s','HeaderLines',1,'Delimiter',';','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
+                fclose(fid);
+                conc_data = zeros(num_files,size(temp_conc_data,2));
+                for i = 1:num_files %size(temp_conc_data,1)
+                    for j = 1:size(temp_conc_data,2)
+                        conc_data(i,j) = str2double(temp_conc_data{1,j}(i,1));
+                    end
+                end
+                motor_concentration = conc_data(filenum,2); % [nM]
+                
                 % Read in particle data
                 motor_file = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
                 fid=fopen(fullfile(dirname,motor_file(filenum).name)); %opens the specified file in the list and imports data
@@ -730,7 +743,7 @@ for master_date_ind = 1:size(dates,2)
                         tot_mt_length = arclength(mts{mttk}(:,1),mts{mttk}(:,2));
                     end
                     
-                    landing_rate = [landing_rate; numel(ftk_on_mt)/((tot_mt_length/1000)*(num_frames*exp_time))]; %[um-1s-1]
+                    landing_rate = [landing_rate; numel(ftk_on_mt)/((tot_mt_length/1000)*(num_frames*exp_time)*motor_concentration)]; %[um-1s-1nM-1]
                         
                     landing_distance{mttk} = cell(max(ftk_on_mt),max(ftk_on_mt)); %cell(size(ftk_on_mt,1),size(ftk_on_mt,1));
                     landing_dist_by_seg{mttk} = cell(5,1);
@@ -1140,7 +1153,7 @@ for master_date_ind = 1:size(dates,2)
                             land_rate_by_seg = double.empty(5,0);
                             mtedges = 0.5:1:(0.5+segment_annotate);
                             [land_num_by_seg, ~]=histcounts(cum_track_start_segment, 'BinEdges', mtedges, 'Normalization', 'count');
-                            land_rate_by_seg = land_num_by_seg'./((segment_lengths{mttk}./1000).*num_frames.*exp_time);
+                            land_rate_by_seg = land_num_by_seg'./((segment_lengths{mttk}./1000).*num_frames.*exp_time.*motor_concentration);
                             for segi = 1:segment_annotate
                                 cum_land_rate_by_seg{segi} = [cum_land_rate_by_seg{segi}, land_rate_by_seg(segi)];
                             end

@@ -57,7 +57,7 @@ for master_date_ind = 1:size(dates,2)
             num_files = size(motor_files,1);
 
             for filenum = 1:num_files
-                clearvars -except motors mt_types dates master_date_ind master_motor_ind master_mt_ind motor mt_type date dirname filenum
+                clearvars -except motors mt_types dates master_date_ind master_motor_ind master_mt_ind motor mt_type date dirname filenum num_files
                 close all
                 
                 %% Options (make 0 to NOT perform related action, 1 to perform)
@@ -142,7 +142,7 @@ for master_date_ind = 1:size(dates,2)
                 for j = 1: size(interp_mts,1)
                     all_interp_mts = [all_interp_mts;interp_mts{j}];
                 end
-                filt_mt_ind = find(skip_mts);
+                filt_mt_ind = find(skip_mts); % This will be changed later for capped MTs if any are found that do not have 3 or 5 segments
                 num_mts = size(mts,1);
                 
                 % For capped MTs, read in segment data
@@ -189,9 +189,12 @@ for master_date_ind = 1:size(dates,2)
                     for i = cap_id
                         if size(segment_boundaries{i},1) ~=2 && size(segment_boundaries{i},1) ~= 4
                             disp(['MT number ', num2str(cap_id), ' does not have 3 or 5 segments. Retrace segment boundaries']);
+                        skips_mts(i) = 1; % also filter out MTs if they do not have an appropriate number of segments
                         end
                     end
-
+                    
+                    filt_mt_ind = find(skip_mts);
+                    
                     num_caps = length(unique(caps_id));
                     if num_caps ~= num_mts
                         disp('ERROR: Data mismatch - retrace MTs and/or MT segment boundaries')
@@ -212,12 +215,26 @@ for master_date_ind = 1:size(dates,2)
                 
                 %identify MT orientation and which indices in MT correspond to the MT seed
                 if zcurve == 1 && zcap == 1
-                    flip_this_mt 
+                    flip_this_mt = {};
+                    mt_seed = {};
                     for j = 1:num_mts
                         [flip_this_mt{j}, mt_seed{j}] = find_mt_seed(interp_mts{j},boundaries_on_mt{j},response_mts{j});
                     end
                 end
-
+                
+                % Read in motor concentration
+                conc_file = dir(fullfile(dirname,'concentration*.csv')); %finds appropriate file
+                fid=fopen(fullfile(dirname,conc_file(1).name)); %opens the specified file in the list and imports data
+                temp_conc_data = textscan(fid,'%s %s','HeaderLines',1,'Delimiter',';','EndOfLine','\n','CommentStyle','C2'); %cell with columns %1=id %2=roi_name %3=x %4=y
+                fclose(fid);
+                conc_data = zeros(num_files,size(temp_conc_data,2));
+                for i = 1:num_files %size(temp_conc_data,1)
+                    for j = 1:size(temp_conc_data,2)
+                        conc_data(i,j) = str2double(temp_conc_data{1,j}(i,1));
+                    end
+                end
+                motor_concentration = conc_data(filenum,2); % [nM]
+                
                 % Read in particle data
                 motor_file = dir(fullfile(dirname,'DoM*.csv')); %finds appropriate files
                 fid=fopen(fullfile(dirname,motor_file(filenum).name)); %opens the specified file in the list and imports data

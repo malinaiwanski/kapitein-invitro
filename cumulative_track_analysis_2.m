@@ -24,7 +24,7 @@ set(0,'DefaultFigureWindowStyle','docked')
 %% Options (make 0 to NOT perform related action, 1 to perform)
 zplot = 1;
 zsave = 1;
-zcap = 1; %set to 1 if using capped MTs
+zcap = 0; %set to 1 if using capped MTs
 
 %% Parameters
 % From imaging:
@@ -47,9 +47,9 @@ time_binwidth = 0.5; %bin width for association time histograms
 loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 
 %% Movies to analyze
-motor = {'kif1a','kif5b'}; %{'kif1a'}; %
-mt_type = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'0.4nM','cap','taxol_cap'}; %
-date = {'2019-12-09','2019-12-13'}; %{'2019-10-30'}; %{'2018-10-17','2019-12-09','2019-12-13'}; %
+motor = {'kif1a','kif5b'}; %
+mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
+date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -671,14 +671,14 @@ for mk = 1:size(motor,2)
             subplot(size(motor,2),size(mt_type,2),catk)
             violinplot(landrateseg{catk}(:,1),landrateseg{catk}(:,2))
             hold on 
-            xlabel('Segment'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
+            xlabel('Segment'), ylabel('Landing rate (/\mum /s /nM)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
             hold off
             
             figure(landratebyseg2)
             subplot(size(motor,2),size(mt_type,2),catk)
             violinplot(landrateseg3{catk}(:,1),landrateseg3{catk}(:,2))
             hold on 
-            xlabel('Segment'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
+            xlabel('Segment'), ylabel('Landing rate (/\mum /s /nM)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by segment'])
             hold off
             
 %             %processive inst vel on GDP
@@ -799,7 +799,7 @@ for mk = 1:size(motor,2)
         subplot(size(motor,2),size(mt_type,2),catk)
         bar(xhist_landrate,nhist_landrate)
         hold on 
-        xlabel('Landing rate on MT (/\mum /s)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing rate'])
+        xlabel('Landing rate on MT (/\mum /s /nM)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing rate'])
         hold off
         
         % landing position along MT - distance from plus-end
@@ -1199,7 +1199,7 @@ figure(landrateviolin)
 %violinplot([land_rates{1},land_rates{2},land_rates{3},land_rates{4},land_rates{5},land_rates{6}])
 violinplot(land_rates(:,1),land_rates(:,2))
 hold on 
-xlabel('Condition'), ylabel('Landing rate (/\mum /s)'), title('Landing rate')
+xlabel('Condition'), ylabel('Landing rate (/\mum /s /nM)'), title('Landing rate')
 hold off
 
 %violin plot of mean run segment velocity

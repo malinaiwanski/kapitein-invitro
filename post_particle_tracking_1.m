@@ -33,8 +33,8 @@ set(0,'DefaultFigureWindowStyle','docked')
 
 %% Movies to analyze
 motors = {'kif1a','kif5b'}; %
-mt_types = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
-dates =  {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
+mt_types = {'cap','taxol_cap'}; %{'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %
+dates =  {'2019-12-09','2019-12-13','2018-10-17'}; %{'2020-02-05','2019-10-30'}; %
 
 %%
 for master_date_ind = 1:size(dates,2)
@@ -65,6 +65,9 @@ for master_date_ind = 1:size(dates,2)
                 zsave = 1; %set to 1 to save the output from this file, must be done if planning to use cumulative_track_analysis_2
                 zcap = 0; %set to 1 if using capped MTs
                 zcurve = 0; %set to 1 if Curve Tracing was used to trace the MTs in Fiji
+%                 if date == '2020-02-05'
+%                     zcurve = 1;
+%                 end
 
                 % Filtering
                 filt_cross_mt = 1; %ignore any tracks on MTs that are too close to another MT - set this distance in the parameters > for analysis section
@@ -130,6 +133,15 @@ for master_date_ind = 1:size(dates,2)
                         for j = 1:size(temp_mt_dat,2) %[1,3,4]
                             temp_mt_data{1,j} = [temp_mt_data{1,j};convertCharsToStrings(temp_mt_dat{i,j})];%str2double(temp_mt_dat{i,j})];
                         end
+                    end
+                end
+                
+                if date == '2020-02-05'
+                    temp_ids = str2double(temp_mt_data{1,1}(:));
+                    temp_ids = temp_ids-1;
+                    temp_mt_data{1,1} = [];
+                    for mti = 1:length(temp_ids)
+                        temp_mt_data{1,1} = [temp_mt_data{1,1};convertCharsToStrings(num2str(temp_ids(mti)))];
                     end
                 end
                 
@@ -1199,12 +1211,12 @@ for master_date_ind = 1:size(dates,2)
                     save_dirname =strcat('/Users/malinaiwanski/OneDrive - Universiteit Utrecht/in_vitro_data/results'); %mac
                     save_filename = ['post_particle_tracking','_',date,'_',motor,'_',mt_type,'_',num2str(filenum),'.mat'];
                     if zcap == 1
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg','cum_proc_cap_vel','cum_proc_gdp_vel','cum_proc_seed_vel','cum_pause_cap_vel','cum_pause_gdp_vel','cum_pause_seed_vel','cum_mean_proc_cap_vel','cum_mean_proc_gdp_vel','cum_mean_proc_seed_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','boundaries_on_mt','segment_lengths','cum_plus_cap_vel','cum_plus_gdp_vel', 'cum_seed_vel', 'cum_minus_cap_vel','cum_minus_gdp_vel','cum_track_start_segment','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_dist_by_seg','segment_indices','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','cum_land_rate_by_seg','cum_proc_cap_vel','cum_proc_gdp_vel','cum_proc_seed_vel','cum_pause_cap_vel','cum_pause_gdp_vel','cum_pause_seed_vel','cum_mean_proc_cap_vel','cum_mean_proc_gdp_vel','cum_mean_proc_seed_vel','motor_concentration')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])
                     else
-                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
+                        save(fullfile(save_dirname,save_filename),'mts','interp_mts','traj','track_start_times','cum_run_length','cum_censored', 'cum_mean_vel','cum_inst_vel','cum_proc_vel','cum_pause_vel','cum_loc_alpha','cum_proc_alpha','cum_pause_alpha','cum_association_time', 'cum_norm_landing_pos', 'cum_landing_dist_to_mt_end','mt_lengths','all_landing_dist','all_norm_landing_dist','all_mt_landing_dist','all_dist_to_plus','all_dist_to_minus','all_time_diff_bw_land','time_diff_bw_land','landing_rate', 'run_durations', 'pause_durations', 'mean_run_vel', 'cum_run_durations','cum_pause_durations','cum_mean_run_vel','motor_concentration')%,'all_land_dist','tot_xhist_landdist','tot_nhist_landdist','x_ld_all','n_ld_all','xhist_ld', 'nhist_ld')
                         %writematrix(proc_vel,[save_dirname,save_filename,'proc_vel','.csv'])
                         %save_land_rates = landing_rates(find(~cellfun('isempty', mts)));
                         %writematrix(save_land_rates,[save_dirname,save_filename,'land_rates','.csv'])

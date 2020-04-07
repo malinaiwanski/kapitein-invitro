@@ -15,7 +15,7 @@ end
 
 all_mt_near_diff_mt = [];
 
-if analyze_mt_num ~= -1
+if analyze_mt_num ~= -1 %only analyze specified MT
     disp(strcat('Analyzing only MT ',num2str(analyze_mt_num)))
     filt_cross = 0; %if analyzing only one MT, do not filter out e.g. crossing MTs
     
@@ -39,7 +39,7 @@ if analyze_mt_num ~= -1
     end
     
     num_mts = 1;
-else
+else %analyze all MTs
     %format MT xy positions
     mts_id = str2double(mt_data{1,1}(:));
     if zcurve == 0

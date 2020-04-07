@@ -49,7 +49,7 @@ loca_binwidth = 0.1; %bin width for local alpha-values (MSD analysis)
 %% Movies to analyze
 motor = {'kif1a','kif5b'}; %
 mt_type = {'1cycle_cpp','2cycle_cpp','gdp_taxol'}; %{'cap','taxol_cap'}; %
-date = {'2019-10-30'}; %{'2019-12-09','2019-12-13'}; %
+date = {'2019-10-30','2020-02-05'}; %{'2019-12-09','2019-12-13','2018-10-17'}; %
 
 %% Initialize figures
 if zplot ~= 0
@@ -95,6 +95,7 @@ if zplot ~= 0
     figure, landingdistancetomotor = gcf;
 %     figure, normlandingdistancetomotor = gcf;
 %     figure, normmtlandingdistancetomotor = gcf;
+    figure, landratebyconc = gcf;
     if zcap == 1
         figure, segmentvel = gcf; %initialize figure 
         figure, segmenttypevel = gcf; %initialize figure 
@@ -154,6 +155,7 @@ for mk = 1:size(motor,2)
         datcat(catk).mts = {};
         datcat(catk).interp_mts = {};
         datcat(catk).mt_lengths = {};
+        datcat(catk).motor_concentration = zeros(numel(traj_files),1);
         if zcap == 1
             datcat(catk).boundaries_on_mt = {};
             datcat(catk).segment_lengths = {};
@@ -183,6 +185,7 @@ for mk = 1:size(motor,2)
         datcat(catk).cum_landing_dist_to_mt_end = [];
         datcat(catk).all_landing_dist = [];
         datcat(catk).all_landing_rate = [];
+        land_rates_by_conc{catk} = [];
 %         datcat(catk).all_norm_landing_dist = [];
 %         datcat(catk).all_mt_landing_dist = [];
         datcat(catk).all_dist_to_plus = [];
@@ -248,6 +251,7 @@ for mk = 1:size(motor,2)
             mts_to_include = find(~cellfun('isempty', datcat(catk).mts{movk})); %indices of MTs not filtered out      
             datcat(catk).interp_mts{movk} = datmovk.interp_mts;
             datcat(catk).mt_lengths{movk} = datmovk.mt_lengths;
+            datcat(catk).motor_concentration(movk,1) = datmovk.motor_concentration;
             if zcap == 1
                 datcat(catk).boundaries_on_mt{movk} = datmovk.boundaries_on_mt;
                 datcat(catk).segment_lengths{movk} = datmovk.segment_lengths;
@@ -303,6 +307,7 @@ for mk = 1:size(motor,2)
             
             datcat(catk).all_landing_rate = [datcat(catk).all_landing_rate; datmovk.landing_rate(mts_to_include)];
             land_rates = [land_rates;datmovk.landing_rate(mts_to_include), repmat(catk,numel(datmovk.landing_rate(mts_to_include)),1)];
+            land_rates_by_conc{catk} = [land_rates_by_conc{catk};datmovk.landing_rate(mts_to_include),repmat(datmovk.motor_concentration,numel(datmovk.landing_rate(mts_to_include)),1)];
 %             datcat(catk).all_norm_landing_dist = [datcat(catk).all_norm_landing_dist; datmovk.all_norm_landing_dist];
 %             datcat(catk).all_mt_landing_dist = [datcat(catk).all_mt_landing_dist; datmovk.all_mt_landing_dist];
             datcat(catk).all_dist_to_minus = [datcat(catk).all_dist_to_minus; datmovk.all_dist_to_minus];
@@ -802,6 +807,17 @@ for mk = 1:size(motor,2)
         xlabel('Landing rate on MT (/\mum /s /nM)'), ylabel('Count'), title([motor{mk},' ', mt_type{mtk},' Landing rate'])
         hold off
         
+        %landing rate on MT by concentration
+        figure(landratebyconc)
+        subplot(size(motor,2),size(mt_type,2),catk)
+        land_rates_to_plot = land_rates_by_conc{catk}(:,1).*land_rates_by_conc{catk}(:,2);
+        violinplot(land_rates_to_plot,land_rates_by_conc{catk}(:,2))
+        %violinplot(land_rates_by_conc{catk}(:,1),land_rates_by_conc{catk}(:,2))
+        hold on 
+        %xlabel('Concentration'), ylabel('Landing rate (/\mum /s /nM)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by concentration'])
+        xlabel('Concentration (nM)'), ylabel('Landing rate (/\mum /s)'), title([motor{mk},' ', mt_type{mtk},' Landing rate by concentration'])
+        hold off
+
         % landing position along MT - distance from plus-end
         [landpos_n, landpos_edges]=histcounts(datcat(catk).cum_landing_dist_to_mt_end, 'BinWidth', 500, 'Normalization', 'count');
         nhist_landpos=landpos_n;
